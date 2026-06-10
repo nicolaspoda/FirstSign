@@ -3,15 +3,18 @@
     "name": "burnout-app",
     "slug": "burnout-app",
     "version": "1.0.0",
+    "scheme": "burnout-app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.burnoutapp"
     },
     "android": {
+      "package": "com.burnoutapp",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#1D9E75",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -19,7 +22,36 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#1D9E75",
+          "sounds": []
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1D9E75"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c044aedf-1ee6-4b4d-9867-3b1d2557f371"
+      },
+      "router": {}
+    },
+    "owner": "nicolaspoda"
   }
 }
