@@ -1,16 +1,22 @@
 import type { RiskLevel } from '@/types/database';
 
-export interface MBIQuestion {
-  id: number;
+export type CBIDimension = 'personal' | 'work' | 'relations';
+export type CBIScale = 'frequency' | 'intensity';
+
+export interface CBIQuestion {
+  id: string;
+  dimension: CBIDimension;
+  scale: CBIScale;
   text: string;
-  dimension: 'exhaustion' | 'cynicism' | 'efficacy';
+  /** True if a high raw answer means LESS burnout and must be inverted before scoring. */
+  reversed?: boolean;
 }
 
 export interface BurnoutScores {
-  exhaustion: number;  // 0–54
-  cynicism: number;    // 0–30
-  efficacy: number;    // 0–48 (higher = better)
-  totalScore: number;  // 0–100 normalized burnout index
+  personal: number;   // 0–100
+  work: number;       // 0–100
+  relations: number;  // 0–100
+  totalScore: number; // 0–100
 }
 
 export interface RiskProfile {
@@ -20,184 +26,189 @@ export interface RiskProfile {
 }
 
 export interface BurnoutProfile {
-  dominantDimension: 'exhaustion' | 'cynicism' | 'low_efficacy' | 'balanced';
+  dominantDimension: 'personal' | 'work' | 'relations' | 'balanced';
   title: string;
   description: string;
   indicators: string[];
 }
 
-// MBI frequency scale labels (0–6)
-export const MBI_SCALE = [
-  'Jamais',
-  'Quelques fois par an ou moins',
-  'Une fois par mois ou moins',
-  'Quelques fois par mois',
-  'Une fois par semaine',
-  'Quelques fois par semaine',
-  'Chaque jour',
+// CBI "frequency" answer scale — used by questions asking "how often..."
+export const CBI_FREQUENCY_SCALE = [
+  'Jamais ou presque jamais',
+  'Rarement',
+  'Parfois',
+  'Souvent',
+  'Tout le temps',
 ] as const;
 
-// Standard MBI-HSS (Human Services Survey) — 22 items in French
-// Subscale mapping (1-indexed question numbers):
-//   Exhaustion  (EE): 1,2,3,6,8,13,14,16,20  → array indices [0,1,2,5,7,12,13,15,19]
-//   Cynicism    (DP): 5,10,11,15,22           → array indices [4,9,10,14,21]
-//   Efficacy    (PA): 4,7,9,12,17,18,19,21    → array indices [3,6,8,11,16,17,18,20]
-export const MBI_QUESTIONS: MBIQuestion[] = [
-  { id: 1,  dimension: 'exhaustion', text: 'Je me sens émotionnellement vidé(e) par mon travail.' },
-  { id: 2,  dimension: 'exhaustion', text: 'Je me sens à bout à la fin d\'une journée de travail.' },
-  { id: 3,  dimension: 'exhaustion', text: 'Je me sens fatigué(e) quand je me lève le matin et que je dois affronter une autre journée au travail.' },
-  { id: 4,  dimension: 'efficacy',   text: 'Je peux facilement comprendre ce que mes interlocuteurs ressentent.' },
-  { id: 5,  dimension: 'cynicism',   text: 'Je sens que je traite certains de mes interlocuteurs comme des objets impersonnels.' },
-  { id: 6,  dimension: 'exhaustion', text: 'Travailler avec des gens tout au long de la journée est vraiment une contrainte pour moi.' },
-  { id: 7,  dimension: 'efficacy',   text: 'Je m\'occupe très efficacement des problèmes de mes interlocuteurs.' },
-  { id: 8,  dimension: 'exhaustion', text: 'Je me sens épuisé(e) par mon travail.' },
-  { id: 9,  dimension: 'efficacy',   text: 'J\'ai l\'impression, à travers mon travail, d\'avoir une influence positive sur les gens.' },
-  { id: 10, dimension: 'cynicism',   text: 'Je suis devenu(e) plus insensible aux gens depuis que j\'ai ce travail.' },
-  { id: 11, dimension: 'cynicism',   text: 'Je crains que ce travail ne m\'endurcisse émotionnellement.' },
-  { id: 12, dimension: 'efficacy',   text: 'Je me sens plein(e) d\'entrain.' },
-  { id: 13, dimension: 'exhaustion', text: 'Je me sens frustré(e) par mon travail.' },
-  { id: 14, dimension: 'exhaustion', text: 'J\'ai le sentiment de travailler trop dur dans mon travail.' },
-  { id: 15, dimension: 'cynicism',   text: 'Je ne me soucie pas vraiment de ce qui arrive à certains de mes interlocuteurs.' },
-  { id: 16, dimension: 'exhaustion', text: 'Travailler en contact direct avec les gens me stresse trop.' },
-  { id: 17, dimension: 'efficacy',   text: 'Je réussis facilement à créer une atmosphère détendue avec mes interlocuteurs.' },
-  { id: 18, dimension: 'efficacy',   text: 'Je me sens ragaillardi(e) lorsque, dans mon travail, j\'ai été proche de mes interlocuteurs.' },
-  { id: 19, dimension: 'efficacy',   text: 'J\'ai accompli beaucoup de choses qui en valent la peine dans ce travail.' },
-  { id: 20, dimension: 'exhaustion', text: 'Je me sens au bout du rouleau.' },
-  { id: 21, dimension: 'efficacy',   text: 'Dans mon travail, je résous calmement les problèmes émotionnels.' },
-  { id: 22, dimension: 'cynicism',   text: 'J\'ai l\'impression que mes interlocuteurs me rendent responsable de certains de leurs problèmes.' },
+// CBI "intensity" answer scale — used by questions asking "how much..."
+export const CBI_INTENSITY_SCALE = [
+  'Pas du tout',
+  'Un peu',
+  'Moyennement',
+  'Beaucoup',
+  'Énormément',
+] as const;
+
+// Maps an answer button index (0–4) to its raw 0–100 value
+export const CBI_SCALE_VALUES = [0, 25, 50, 75, 100] as const;
+
+// Copenhagen Burnout Inventory (CBI) — 19 items in French.
+// Order is the recommended display order: dimensions are interleaved to
+// avoid response bias (an official CBI recommendation).
+// Note: "personnes avec qui vous travaillez" replaces "clients" in the
+// relational dimension to adapt the original CBI wording for a general
+// professional audience.
+export const CBI_QUESTIONS: CBIQuestion[] = [
+  { id: 'personal_1', dimension: 'personal', scale: 'frequency', text: 'À quelle fréquence vous sentez-vous fatigué(e) ?' },
+  { id: 'work_1', dimension: 'work', scale: 'frequency', text: "Vous sentez-vous vidé(e) à la fin d'une journée de travail ?" },
+  { id: 'relation_1', dimension: 'relations', scale: 'intensity', text: 'Trouvez-vous difficile de travailler avec les personnes avec qui vous travaillez ?' },
+  { id: 'personal_2', dimension: 'personal', scale: 'frequency', text: 'À quelle fréquence êtes-vous physiquement épuisé(e) ?' },
+  { id: 'work_2', dimension: 'work', scale: 'frequency', text: "Êtes-vous épuisé(e) le matin à l'idée d'une nouvelle journée de travail ?" },
+  { id: 'relation_2', dimension: 'relations', scale: 'intensity', text: 'Travailler avec ces personnes vous vide-t-il de votre énergie ?' },
+  { id: 'personal_3', dimension: 'personal', scale: 'frequency', text: 'À quelle fréquence êtes-vous émotionnellement épuisé(e) ?' },
+  { id: 'work_3', dimension: 'work', scale: 'frequency', text: "Avez-vous l'impression que chaque heure de travail est éprouvante ?" },
+  { id: 'relation_3', dimension: 'relations', scale: 'intensity', text: 'Trouvez-vous frustrant de travailler avec ces personnes ?' },
+  { id: 'personal_4', dimension: 'personal', scale: 'frequency', text: "À quelle fréquence pensez-vous : « Je n'en peux plus » ?" },
+  { id: 'work_4', dimension: 'work', scale: 'intensity', text: 'Votre travail vous épuise-t-il émotionnellement ?' },
+  { id: 'relation_4', dimension: 'relations', scale: 'intensity', text: "Avez-vous l'impression de donner plus que vous ne recevez dans ces relations professionnelles ?" },
+  { id: 'personal_5', dimension: 'personal', scale: 'frequency', text: 'À quelle fréquence vous sentez-vous à bout ?' },
+  { id: 'work_5', dimension: 'work', scale: 'intensity', text: 'Votre travail vous frustre-t-il ?' },
+  { id: 'relation_5', dimension: 'relations', scale: 'frequency', text: 'Êtes-vous fatigué(e) des personnes avec qui vous travaillez ?' },
+  { id: 'personal_6', dimension: 'personal', scale: 'frequency', text: 'À quelle fréquence vous sentez-vous faible et vulnérable à la maladie ?' },
+  { id: 'work_6', dimension: 'work', scale: 'intensity', text: 'Vous sentez-vous épuisé(e) par votre travail ?' },
+  { id: 'work_7', dimension: 'work', scale: 'frequency', reversed: true, text: 'Avez-vous suffisamment d\'énergie pour votre famille et vos amis pendant votre temps libre ?' },
+  { id: 'relation_6', dimension: 'relations', scale: 'frequency', text: 'Vous demandez-vous parfois combien de temps vous pourrez continuer à travailler avec ces personnes ?' },
 ];
 
-const EE_INDICES = [0, 1, 2, 5, 7, 12, 13, 15, 19];
-const DP_INDICES = [4, 9, 10, 14, 21];
-const PA_INDICES = [3, 6, 8, 11, 16, 17, 18, 20];
-
-const EE_MAX = 54;
-const DP_MAX = 30;
-const PA_MAX = 48;
-
 export function calculateScores(answers: number[]): BurnoutScores {
-  if (answers.length !== 22) {
-    throw new Error(`calculateScores expects 22 answers, got ${answers.length}`);
+  if (answers.length !== CBI_QUESTIONS.length) {
+    throw new Error(`calculateScores expects ${CBI_QUESTIONS.length} answers, got ${answers.length}`);
   }
 
-  const exhaustion = EE_INDICES.reduce((sum, i) => sum + (answers[i] ?? 0), 0);
-  const cynicism   = DP_INDICES.reduce((sum, i) => sum + (answers[i] ?? 0), 0);
-  const efficacy   = PA_INDICES.reduce((sum, i) => sum + (answers[i] ?? 0), 0);
+  const totals: Record<CBIDimension, { sum: number; count: number }> = {
+    personal: { sum: 0, count: 0 },
+    work: { sum: 0, count: 0 },
+    relations: { sum: 0, count: 0 },
+  };
 
-  // Normalize each dimension to 0–100 where 100 = maximum burnout
-  const eeNorm = (exhaustion / EE_MAX) * 100;
-  const dpNorm = (cynicism   / DP_MAX) * 100;
-  const paInv  = ((PA_MAX - efficacy) / PA_MAX) * 100; // low efficacy = high burnout
+  CBI_QUESTIONS.forEach((question, index) => {
+    const raw = answers[index] ?? 0;
+    const value = question.reversed ? 100 - raw : raw;
+    totals[question.dimension].sum += value;
+    totals[question.dimension].count += 1;
+  });
 
-  const totalScore = Math.round((eeNorm + dpNorm + paInv) / 3);
-
-  return { exhaustion, cynicism, efficacy, totalScore };
-}
-
-// Standard Maslach cutoffs
-const EE_MOD = 17; const EE_HIGH = 27;
-const DP_MOD = 7;  const DP_HIGH = 13;
-const PA_LOW = 31; const PA_MOD  = 38;
-
-export function getRiskLevel(scores: BurnoutScores): RiskProfile {
-  const { exhaustion, cynicism, efficacy } = scores;
-
-  const eeHigh = exhaustion >= EE_HIGH;
-  const eeMod  = exhaustion >= EE_MOD;
-  const dpHigh = cynicism   >= DP_HIGH;
-  const dpMod  = cynicism   >= DP_MOD;
-  const paLow  = efficacy   <= PA_LOW;
-  const paMod  = efficacy   <= PA_MOD;
-
-  if (eeHigh && (dpHigh || paLow)) {
-    return {
-      level: 'critical',
-      description: 'Épuisement professionnel sévère détecté sur plusieurs dimensions.',
-      urgency: 'Consultez un professionnel de santé dès que possible.',
-    };
-  }
-
-  if (eeHigh || (dpHigh && paLow)) {
-    return {
-      level: 'high',
-      description: 'Risque élevé de burnout. Des changements significatifs sont nécessaires.',
-      urgency: 'Agissez rapidement pour prévenir une dégradation.',
-    };
-  }
-
-  if (eeMod || dpMod || paMod) {
-    return {
-      level: 'medium',
-      description: 'Signes préoccupants de stress professionnel chronique.',
-      urgency: 'Mettez en place des stratégies de protection dès maintenant.',
-    };
-  }
+  const personal = totals.personal.sum / totals.personal.count;
+  const work = totals.work.sum / totals.work.count;
+  const relations = totals.relations.sum / totals.relations.count;
+  const totalScore = (personal + work + relations) / 3;
 
   return {
-    level: 'low',
-    description: 'Niveaux de stress professionnels gérables.',
-    urgency: 'Maintenez vos bonnes pratiques de bien-être.',
+    personal: Math.round(personal),
+    work: Math.round(work),
+    relations: Math.round(relations),
+    totalScore: Math.round(totalScore),
   };
 }
 
+// CBI risk thresholds, applied to a 0–100 dimension or global score
+const RISK_MEDIUM = 50;
+const RISK_HIGH = 75;
+const RISK_CRITICAL = 90;
+
+export function getScoreLevel(score: number): RiskLevel {
+  if (score >= RISK_CRITICAL) return 'critical';
+  if (score >= RISK_HIGH) return 'high';
+  if (score >= RISK_MEDIUM) return 'medium';
+  return 'low';
+}
+
+export function getRiskLevel(scores: BurnoutScores): RiskProfile {
+  const level = getScoreLevel(scores.totalScore);
+
+  switch (level) {
+    case 'critical':
+      return {
+        level,
+        description: 'Épuisement professionnel sévère détecté sur plusieurs dimensions.',
+        urgency: 'Consultez un professionnel de santé dès que possible.',
+      };
+    case 'high':
+      return {
+        level,
+        description: 'Risque élevé de burnout. Des changements significatifs sont nécessaires.',
+        urgency: 'Agissez rapidement pour prévenir une dégradation.',
+      };
+    case 'medium':
+      return {
+        level,
+        description: 'Signes préoccupants de stress professionnel chronique.',
+        urgency: 'Mettez en place des stratégies de protection dès maintenant.',
+      };
+    default:
+      return {
+        level,
+        description: 'Niveaux de stress professionnels gérables.',
+        urgency: 'Maintenez vos bonnes pratiques de bien-être.',
+      };
+  }
+}
+
 export function getBurnoutProfile(scores: BurnoutScores): BurnoutProfile {
-  const { exhaustion, cynicism, efficacy } = scores;
+  const { personal, work, relations } = scores;
 
-  const eeNorm = (exhaustion / EE_MAX) * 100;
-  const dpNorm = (cynicism   / DP_MAX) * 100;
-  const paInv  = ((PA_MAX - efficacy) / PA_MAX) * 100;
-
-  const maxScore = Math.max(eeNorm, dpNorm, paInv);
-  const minScore = Math.min(eeNorm, dpNorm, paInv);
-  const isBalanced = maxScore - minScore < 15 && maxScore < 45;
+  const maxScore = Math.max(personal, work, relations);
+  const minScore = Math.min(personal, work, relations);
+  const isBalanced = maxScore - minScore < 15 && maxScore < RISK_MEDIUM;
 
   if (isBalanced) {
     return {
       dominantDimension: 'balanced',
       title: 'Profil équilibré',
-      description: 'Vos trois dimensions sont dans des zones acceptables. Vous gérez bien votre charge professionnelle.',
+      description: 'Vos trois dimensions sont dans des zones acceptables. Vous gérez bien votre charge actuelle.',
       indicators: [
-        'Énergie émotionnelle préservée',
-        'Engagement professionnel maintenu',
-        'Sentiment d\'efficacité intact',
+        'Énergie personnelle préservée',
+        'Charge de travail soutenable',
+        'Relations professionnelles globalement positives',
       ],
     };
   }
 
-  if (eeNorm >= dpNorm && eeNorm >= paInv) {
+  if (personal >= work && personal >= relations) {
     return {
-      dominantDimension: 'exhaustion',
-      title: 'Épuisement émotionnel dominant',
-      description: 'Vous vous sentez vidé(e) et à bout. La fatigue émotionnelle est votre principal signal d\'alerte.',
+      dominantDimension: 'personal',
+      title: 'Épuisement personnel dominant',
+      description: 'Votre fatigue physique et émotionnelle générale est votre principal signal d\'alerte, au-delà de votre seul contexte professionnel.',
       indicators: [
-        'Fatigue persistante au quotidien',
-        'Sentiment d\'être à bout en fin de journée',
-        'Difficulté à récupérer le matin',
+        'Fatigue physique et émotionnelle persistante',
+        'Sentiment d\'être à bout',
+        'Vulnérabilité accrue à la maladie',
       ],
     };
   }
 
-  if (dpNorm >= eeNorm && dpNorm >= paInv) {
+  if (work >= personal && work >= relations) {
     return {
-      dominantDimension: 'cynicism',
-      title: 'Cynisme et détachement dominant',
-      description: 'Vous avez développé une distance émotionnelle avec votre travail et vos interlocuteurs.',
+      dominantDimension: 'work',
+      title: 'Épuisement professionnel dominant',
+      description: 'Votre travail est la principale source de votre épuisement : il vous vide d\'énergie et alimente votre fatigue.',
       indicators: [
-        'Détachement progressif des collègues',
-        'Irritabilité et indifférence accrue',
-        'Perte d\'intérêt pour les résultats',
+        'Sentiment d\'être vidé(e) par le travail',
+        'Frustration liée à l\'activité professionnelle',
+        'Difficulté à récupérer après le travail',
       ],
     };
   }
 
   return {
-    dominantDimension: 'low_efficacy',
-    title: 'Perte d\'efficacité personnelle dominante',
-    description: 'Vous doutez de votre compétence et de votre impact dans votre rôle professionnel.',
+    dominantDimension: 'relations',
+    title: 'Épuisement relationnel dominant',
+    description: 'Vos relations professionnelles sont votre principal facteur d\'épuisement : elles vous coûtent plus qu\'elles ne vous apportent.',
     indicators: [
-      'Sentiment d\'incompétence ou d\'inutilité',
-      'Perte de confiance en soi professionnelle',
-      'Remise en question de vos accomplissements',
+      'Relations professionnelles éprouvantes',
+      'Sentiment de donner plus que vous ne recevez',
+      'Fatigue liée aux personnes avec qui vous travaillez',
     ],
   };
 }

@@ -61,7 +61,7 @@ const PLAN_TEMPLATES: Record<string, ActionTemplate[][]> = {
     [
       { title: 'Définir vos 3 signaux d\'alerte', description: 'Identifiez les premiers signes qui indiquent que vous rechargez vers l\'épuisement (irritabilité, insomnies, etc.). Écrivez-les.', duration: '30 min', category: 'prévention' },
       { title: 'Réseau de soutien formalisé', description: 'Identifiez 2 personnes de confiance et convenez explicitement qu\'elles peuvent vous alerter si elles vous voient vous dégrader.', duration: '1 heure', category: 'soutien' },
-      { title: 'Programmer votre prochain diagnostic', description: 'Bloquez une date dans 3 mois pour refaire votre évaluation MBI et mesurer votre progression.', duration: '5 min', category: 'suivi' },
+      { title: 'Programmer votre prochain diagnostic', description: 'Bloquez une date dans 3 mois pour refaire votre évaluation CBI et mesurer votre progression.', duration: '5 min', category: 'suivi' },
     ],
   ],
 
@@ -213,7 +213,7 @@ const PLAN_TEMPLATES: Record<string, ActionTemplate[][]> = {
     // Semaine 8 — Excellence durable
     [
       { title: 'Rédiger votre manifeste personnel', description: 'Écrivez une page sur : vos valeurs fondamentales, vos limites non-négociables, vos sources de joie. Ce texte est votre boussole.', duration: '1 heure', category: 'identité' },
-      { title: 'Programmer votre prochain diagnostic dans 3 mois', description: 'Bloquez une date pour refaire l\'évaluation MBI. Maintenir la vigilance est la meilleure prévention du burnout.', duration: '5 min', category: 'suivi' },
+      { title: 'Programmer votre prochain diagnostic dans 3 mois', description: 'Bloquez une date pour refaire l\'évaluation CBI. Maintenir la vigilance est la meilleure prévention du burnout.', duration: '5 min', category: 'suivi' },
       { title: 'Célébrer vos 8 semaines', description: 'Vous avez investi en vous-même pendant 2 mois. Célébrez sincèrement : faites quelque chose qui vous réjouit vraiment.', duration: 'Variable', category: 'célébration' },
     ],
   ],

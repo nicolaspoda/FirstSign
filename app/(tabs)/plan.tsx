@@ -204,7 +204,7 @@ export default function PlanScreen() {
 
   const handleGenerate = useCallback(async () => {
     if (!latestAssessment) {
-      setInlineMsg({ text: 'Aucun diagnostic trouvé. Faites d\'abord le diagnostic MBI.', ok: false });
+      setInlineMsg({ text: 'Aucun diagnostic trouvé. Faites d\'abord le diagnostic CBI.', ok: false });
       return;
     }
     if (!isPremium) {
@@ -268,7 +268,7 @@ export default function PlanScreen() {
           <Ionicons name="clipboard-outline" size={48} color={Colors.textMuted} style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>Faites le diagnostic d'abord</Text>
           <Text style={styles.emptySubtitle}>
-            Le plan d'action est généré à partir de votre diagnostic MBI.
+            Le plan d'action est généré à partir de votre diagnostic CBI.
           </Text>
           <TouchableOpacity
             style={styles.ctaButton}

@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const systemPrompt = assessment
-      ? `${BASE_SYSTEM_PROMPT}\n\nCONTEXTE UTILISATEUR : L'utilisateur a un score d'épuisement de ${assessment.exhaustion_score}/54, de cynisme de ${assessment.cynicism_score}/30 et d'efficacité personnelle de ${assessment.efficacy_score}/48. Son niveau de risque de burnout est ${RISK_LABELS[assessment.risk_level] ?? assessment.risk_level}. Adapte tes conseils à ce profil spécifique et fais référence à ces dimensions lorsque c'est pertinent.`
+      ? `${BASE_SYSTEM_PROMPT}\n\nCONTEXTE UTILISATEUR : L'utilisateur a un score d'épuisement personnel de ${assessment.exhaustion_score}/100, un épuisement professionnel de ${assessment.cynicism_score}/100 et un épuisement relationnel de ${assessment.efficacy_score}/100 (questionnaire CBI). Son niveau de risque de burnout est ${RISK_LABELS[assessment.risk_level] ?? assessment.risk_level}. Adapte tes conseils à ce profil spécifique et fais référence à ces dimensions lorsque c'est pertinent.`
       : BASE_SYSTEM_PROMPT;
 
     const contents = messages.map((m: { role: string; content: string }) => ({

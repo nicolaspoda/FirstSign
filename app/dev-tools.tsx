@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { Colors } from '@/constants/colors';
+import { CBI_QUESTIONS, calculateScores, getRiskLevel } from '@/lib/burnout';
 
 // ─── ISO week helper ──────────────────────────────────────────────────────────
 
@@ -138,22 +139,22 @@ export default function DevToolsScreen() {
   }
 
   async function createSecondDiagnostic(userId: string) {
-    // Scores "high" risk — sommes standard MBI
-    const exhaustion_score = 30;  // /54
-    const cynicism_score   = 14;  // /30
-    const efficacy_score   = 25;  // /48
-    const eeNorm  = (exhaustion_score / 54) * 100;
-    const dpNorm  = (cynicism_score   / 30) * 100;
-    const paInv   = ((48 - efficacy_score) / 48) * 100;
-    const total_score = Math.min(99, Math.round((eeNorm + dpNorm + paInv) / 3));
+    // 19 réponses CBI (0/25/50/75/100) — profil "critique" sur les 3 dimensions.
+    // work_7 (index 17, "énergie pour la famille/les amis") est inversée :
+    // une réponse à 0 ("Jamais ou presque jamais") donne 100 points de burnout.
+    const answers = new Array(CBI_QUESTIONS.length).fill(100);
+    answers[17] = 0;
+
+    const scores = calculateScores(answers);
+    const risk = getRiskLevel(scores);
 
     const { error } = await supabase.from('assessments').insert({
       user_id: userId,
-      exhaustion_score,
-      cynicism_score,
-      efficacy_score,
-      total_score,
-      risk_level: 'critical',
+      exhaustion_score: scores.personal,
+      cynicism_score: scores.work,
+      efficacy_score: scores.relations,
+      total_score: scores.totalScore,
+      risk_level: risk.level,
     });
     if (error) throw error;
   }
@@ -282,7 +283,7 @@ export default function DevToolsScreen() {
         <Btn
           id="diagnostic2"
           label="Créer un 2ème diagnostic"
-          sublabel="Risque critique (EE=30, DP=14, PA=25)"
+          sublabel="Risque critique (CBI 100/100/100)"
           confirmMsg="Créer un deuxième assessment dans l'historique ?"
           action={createSecondDiagnostic}
         />

@@ -77,14 +77,14 @@ export default function WelcomeScreen() {
 
           <Animated.View style={[styles.subtitleContainer, subtitleStyle]}>
             <Text style={styles.subtitle}>
-              Le questionnaire MBI validé scientifiquement pour évaluer
+              Le questionnaire CBI validé scientifiquement pour évaluer
               votre niveau d'épuisement professionnel
             </Text>
           </Animated.View>
 
           <Animated.View style={[styles.badgesContainer, badgesStyle]}>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>22 questions</Text>
+              <Text style={styles.badgeText}>19 questions</Text>
             </View>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>5 minutes</Text>

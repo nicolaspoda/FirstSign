@@ -1,6 +1,6 @@
 ---
 name: frontend-onboarding
-description: Crée les écrans d'onboarding et de diagnostic burnout. Utiliser pour le questionnaire MBI, les résultats et le paywall.
+description: Crée les écrans d'onboarding et de diagnostic burnout. Utiliser pour le questionnaire CBI, les résultats et le paywall.
 tools: Read, Write, Edit, Bash
 model: sonnet
 color: yellow

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,12 +20,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
-import { MBI_QUESTIONS, MBI_SCALE } from '@/lib/burnout';
+import { CBI_QUESTIONS, CBI_FREQUENCY_SCALE, CBI_INTENSITY_SCALE, CBI_SCALE_VALUES } from '@/lib/burnout';
 import { calculateBurnoutScore } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TOTAL = MBI_QUESTIONS.length;
+const TOTAL = CBI_QUESTIONS.length;
+const PENDING_ANSWERS_KEY = 'pending_assessment_answers';
 
 export default function AssessmentScreen() {
   const router = useRouter();
@@ -45,6 +47,28 @@ export default function AssessmentScreen() {
   const animatedProgress = useAnimatedStyle(() => ({
     width: `${progressWidth.value}%` as any,
   }));
+
+  // Restore in-progress answers if the user closed the app mid-assessment
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem(PENDING_ANSWERS_KEY);
+        if (!saved) return;
+
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed) || parsed.length !== TOTAL) return;
+
+        const firstUnanswered = parsed.findIndex((a: number) => a === -1);
+        const restoreIndex = firstUnanswered === -1 ? TOTAL - 1 : firstUnanswered;
+
+        setAnswers(parsed);
+        setCurrentIndex(restoreIndex);
+        progressWidth.value = ((restoreIndex + 1) / TOTAL) * 100;
+      } catch {
+        // Corrupted or unreadable cache — start fresh
+      }
+    })();
+  }, []);
 
   const navigateToQuestion = useCallback(
     (targetIndex: number, direction: 'forward' | 'back') => {
@@ -71,6 +95,7 @@ export default function AssessmentScreen() {
     const updated = [...answers];
     updated[currentIndex] = value;
     setAnswers(updated);
+    AsyncStorage.setItem(PENDING_ANSWERS_KEY, JSON.stringify(updated)).catch(() => {});
 
     if (currentIndex < TOTAL - 1) {
       navigateToQuestion(currentIndex + 1, 'forward');
@@ -98,6 +123,7 @@ export default function AssessmentScreen() {
     try {
       const finalAnswers = answers.map((a) => (a === -1 ? 0 : a));
       const result = await calculateBurnoutScore(finalAnswers);
+      await AsyncStorage.removeItem(PENDING_ANSWERS_KEY);
       router.push({
         pathname: '/(onboarding)/results',
         params: { assessmentId: result.assessment_id },
@@ -109,23 +135,24 @@ export default function AssessmentScreen() {
     }
   }
 
-  const question = MBI_QUESTIONS[currentIndex];
+  const question = CBI_QUESTIONS[currentIndex];
   const selectedAnswer = answers[currentIndex];
   const isLastQuestion = currentIndex === TOTAL - 1;
+  const scaleLabels = question.scale === 'frequency' ? CBI_FREQUENCY_SCALE : CBI_INTENSITY_SCALE;
 
   const dimensionLabel =
-    question.dimension === 'exhaustion'
-      ? 'Épuisement émotionnel'
-      : question.dimension === 'cynicism'
-      ? 'Cynisme'
-      : 'Efficacité personnelle';
+    question.dimension === 'personal'
+      ? 'Épuisement personnel'
+      : question.dimension === 'work'
+      ? 'Épuisement professionnel'
+      : 'Épuisement relationnel';
 
   const dimensionStyle =
-    question.dimension === 'exhaustion'
-      ? styles.dimensionExhaustion
-      : question.dimension === 'cynicism'
-      ? styles.dimensionCynicism
-      : styles.dimensionEfficacy;
+    question.dimension === 'personal'
+      ? styles.dimensionPersonal
+      : question.dimension === 'work'
+      ? styles.dimensionWork
+      : styles.dimensionRelations;
 
   const backDisabled = currentIndex === 0 && !router.canGoBack();
 
@@ -165,23 +192,27 @@ export default function AssessmentScreen() {
         </Animated.View>
 
         <View style={styles.answersContainer}>
-          {MBI_SCALE.map((label, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.answerButton, selectedAnswer === index && styles.answerButtonSelected]}
-              onPress={() => handleAnswer(index)}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.answerIndex, selectedAnswer === index && styles.answerIndexSelected]}>
-                <Text style={[styles.answerIndexText, selectedAnswer === index && styles.answerIndexTextSelected]}>
-                  {index}
+          {scaleLabels.map((label, index) => {
+            const value = CBI_SCALE_VALUES[index];
+            const isSelected = selectedAnswer === value;
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[styles.answerButton, isSelected && styles.answerButtonSelected]}
+                onPress={() => handleAnswer(value)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.answerIndex, isSelected && styles.answerIndexSelected]}>
+                  <Text style={[styles.answerIndexText, isSelected && styles.answerIndexTextSelected]}>
+                    {index + 1}
+                  </Text>
+                </View>
+                <Text style={[styles.answerLabel, isSelected && styles.answerLabelSelected]}>
+                  {label}
                 </Text>
-              </View>
-              <Text style={[styles.answerLabel, selectedAnswer === index && styles.answerLabelSelected]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {error ? (
@@ -278,13 +309,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     backgroundColor: Colors.surfaceAlt,
   },
-  dimensionExhaustion: {
+  dimensionPersonal: {
     backgroundColor: '#FEF3C7',
   },
-  dimensionCynicism: {
+  dimensionWork: {
     backgroundColor: '#FEE2E2',
   },
-  dimensionEfficacy: {
+  dimensionRelations: {
     backgroundColor: Colors.primaryLight,
   },
   dimensionText: {

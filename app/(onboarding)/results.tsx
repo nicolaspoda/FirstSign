@@ -18,6 +18,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { Colors } from '@/constants/colors';
+import { getScoreLevel } from '@/lib/burnout';
 import { supabase } from '@/lib/supabase';
 import { generateActionPlan } from '@/lib/api';
 import { scheduleWeeklyCheckinReminder } from '@/lib/notifications';
@@ -46,24 +47,42 @@ const RISK_DESCRIPTIONS: Record<RiskLevel, string> = {
   critical: 'Épuisement professionnel sévère. Consultez un professionnel de santé.',
 };
 
+const DIMENSION_DESCRIPTIONS: Record<'personal' | 'work' | 'relations', Record<RiskLevel, string>> = {
+  personal: {
+    low: 'Votre niveau d\'épuisement personnel est faible.',
+    medium: 'Vous ressentez une fatigue modérée.',
+    high: 'Vous êtes significativement épuisé(e).',
+    critical: 'Votre épuisement personnel est sévère.',
+  },
+  work: {
+    low: 'Votre travail ne vous épuise pas particulièrement.',
+    medium: 'Votre travail génère une fatigue modérée.',
+    high: 'Votre travail vous épuise significativement.',
+    critical: 'Votre épuisement professionnel est sévère.',
+  },
+  relations: {
+    low: 'Vos relations professionnelles ne vous épuisent pas.',
+    medium: 'Vos relations professionnelles génèrent une légère fatigue.',
+    high: 'Vos relations professionnelles vous épuisent.',
+    critical: 'Vos relations professionnelles vous épuisent sévèrement.',
+  },
+};
+
 interface GaugeBarProps {
   label: string;
-  value: number;
-  max: number;
-  inverted?: boolean;
+  value: number; // 0–100
   color: string;
+  description?: string;
   delay?: number;
 }
 
-function GaugeBar({ label, value, max, inverted = false, color, delay = 0 }: GaugeBarProps) {
+function GaugeBar({ label, value, color, description, delay = 0 }: GaugeBarProps) {
   const fillWidth = useSharedValue(0);
-  const burnoutRatio = inverted ? 1 - value / max : value / max;
-  const percentage = Math.round(burnoutRatio * 100);
 
   useEffect(() => {
     fillWidth.value = withDelay(
       delay,
-      withTiming(burnoutRatio * 100, { duration: 800, easing: Easing.out(Easing.cubic) }),
+      withTiming(value, { duration: 800, easing: Easing.out(Easing.cubic) }),
     );
   }, []);
 
@@ -75,11 +94,12 @@ function GaugeBar({ label, value, max, inverted = false, color, delay = 0 }: Gau
     <View style={gaugeStyles.container}>
       <View style={gaugeStyles.labelRow}>
         <Text style={gaugeStyles.label}>{label}</Text>
-        <Text style={[gaugeStyles.percentage, { color }]}>{percentage}%</Text>
+        <Text style={[gaugeStyles.percentage, { color }]}>{value}%</Text>
       </View>
       <View style={gaugeStyles.track}>
         <Animated.View style={[gaugeStyles.fill, { backgroundColor: color }, fillStyle]} />
       </View>
+      {description ? <Text style={gaugeStyles.description}>{description}</Text> : null}
     </View>
   );
 }
@@ -91,6 +111,7 @@ const gaugeStyles = StyleSheet.create({
   percentage: { fontSize: 14, fontWeight: '700' },
   track: { height: 10, backgroundColor: Colors.border, borderRadius: 5, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 5 },
+  description: { fontSize: 12, color: Colors.textSecondary, marginTop: 8, lineHeight: 17 },
 });
 
 const STABLE_THRESHOLD = 3;
@@ -308,7 +329,7 @@ export default function ResultsScreen() {
         <Animated.View style={[styles.content, contentStyle]}>
           <View style={styles.pageHeader}>
             <Text style={styles.pageTitle}>Votre diagnostic</Text>
-            <Text style={styles.pageSubtitle}>Questionnaire MBI — 22 questions</Text>
+            <Text style={styles.pageSubtitle}>Questionnaire CBI — 19 questions</Text>
           </View>
 
           <View style={[styles.scoreCard, { borderColor: riskColor }]}>
@@ -336,37 +357,33 @@ export default function ResultsScreen() {
           <View style={styles.dimensionsCard}>
             <Text style={styles.sectionTitle}>Détail par dimension</Text>
             <GaugeBar
-              label="Épuisement émotionnel"
+              label="Épuisement personnel"
               value={assessment.exhaustion_score}
-              max={54}
               color={Colors.severityModerate}
+              description={DIMENSION_DESCRIPTIONS.personal[getScoreLevel(assessment.exhaustion_score)]}
               delay={200}
             />
             <GaugeBar
-              label="Cynisme / Dépersonnalisation"
+              label="Épuisement professionnel"
               value={assessment.cynicism_score}
-              max={30}
               color={Colors.severityMild}
+              description={DIMENSION_DESCRIPTIONS.work[getScoreLevel(assessment.cynicism_score)]}
               delay={400}
             />
             <GaugeBar
-              label="Efficacité personnelle"
+              label="Épuisement relationnel"
               value={assessment.efficacy_score}
-              max={48}
-              inverted
               color={Colors.severitySevere}
+              description={DIMENSION_DESCRIPTIONS.relations[getScoreLevel(assessment.efficacy_score)]}
               delay={600}
             />
-            <Text style={styles.legendText}>
-              * Pour l'efficacité, un score bas indique un risque plus élevé.
-            </Text>
           </View>
 
           <View style={styles.detailsRow}>
             {[
-              { value: assessment.exhaustion_score, label: 'Épuisement\n/54' },
-              { value: assessment.cynicism_score, label: 'Cynisme\n/30' },
-              { value: assessment.efficacy_score, label: 'Efficacité\n/48' },
+              { value: assessment.exhaustion_score, label: 'Personnel\n/100' },
+              { value: assessment.cynicism_score, label: 'Professionnel\n/100' },
+              { value: assessment.efficacy_score, label: 'Relationnel\n/100' },
             ].map((item, idx) => (
               <View key={idx} style={styles.detailChip}>
                 <Text style={styles.detailChipValue}>{item.value}</Text>
@@ -380,20 +397,19 @@ export default function ResultsScreen() {
               <Text style={styles.sectionTitle}>Votre évolution depuis le dernier diagnostic</Text>
 
               <ComparisonRow
-                label="Épuisement émotionnel"
+                label="Épuisement personnel"
                 current={assessment.exhaustion_score}
                 previous={previousAssessment.exhaustion_score}
               />
               <ComparisonRow
-                label="Cynisme"
+                label="Épuisement professionnel"
                 current={assessment.cynicism_score}
                 previous={previousAssessment.cynicism_score}
               />
               <ComparisonRow
-                label="Efficacité personnelle"
+                label="Épuisement relationnel"
                 current={assessment.efficacy_score}
                 previous={previousAssessment.efficacy_score}
-                higherIsBetter
               />
 
               <View style={styles.evolutionDivider} />
@@ -416,6 +432,10 @@ export default function ResultsScreen() {
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
+
+          <Text style={styles.cbiNote}>
+            Basé sur le Copenhagen Burnout Inventory (CBI) — outil scientifique libre de droits
+          </Text>
 
           {previousAssessment ? (
             <TouchableOpacity
@@ -587,11 +607,13 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 20,
   },
-  legendText: {
+  cbiNote: {
     fontSize: 11,
     color: Colors.textMuted,
     fontStyle: 'italic',
     lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   evolutionCard: {
     backgroundColor: Colors.surface,

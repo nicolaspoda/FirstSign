@@ -5,35 +5,37 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// MBI item numbers (1-based), matching standard MBI-HSS subscales
-const EXHAUSTION_ITEMS = [1, 2, 3, 6, 8, 13, 14, 16, 20]; // 9 items × max 6 = max 54
-const CYNICISM_ITEMS   = [5, 10, 11, 15, 22];              // 5 items × max 6 = max 30
-const EFFICACY_ITEMS   = [4, 7, 9, 12, 17, 18, 19, 21];   // 8 items × max 6 = max 48
+// Copenhagen Burnout Inventory (CBI) — 19 items, answers in {0,25,50,75,100}.
+// Indices below match the display order produced by app/(onboarding)/assessment.tsx
+// (and CBI_QUESTIONS in lib/burnout.ts): personal_1, work_1, relation_1,
+// personal_2, work_2, relation_2, ... personal_6, work_6, work_7, relation_6.
+const PERSONAL_INDICES = [0, 3, 6, 9, 12, 15];
+const WORK_INDICES     = [1, 4, 7, 10, 13, 16, 17];
+const RELATION_INDICES = [2, 5, 8, 11, 14, 18];
 
-const EE_MAX = 54;
-const DP_MAX = 30;
-const PA_MAX = 48;
+// work_7 ("énergie pour la famille et les amis") is reversed: a high raw
+// answer means LESS burnout, so it must be inverted before averaging.
+const REVERSED_INDICES = new Set([17]);
 
-// Standard Maslach cutoffs (sum-based, not averages)
-const EE_MOD = 17; const EE_HIGH = 27;
-const DP_MOD = 7;  const DP_HIGH = 13;
-const PA_LOW = 31; const PA_MOD  = 38;
+const TOTAL_QUESTIONS = 19;
 
-function sumItems(answers: number[], items: number[]): number {
-  return items.reduce((sum, i) => sum + (answers[i - 1] ?? 0), 0);
+// CBI risk thresholds, applied to the 0–100 global score
+const RISK_MEDIUM = 50;
+const RISK_HIGH = 75;
+const RISK_CRITICAL = 90;
+
+function dimensionAverage(answers: number[], indices: number[]): number {
+  const sum = indices.reduce((acc, i) => {
+    const raw = answers[i] ?? 0;
+    return acc + (REVERSED_INDICES.has(i) ? 100 - raw : raw);
+  }, 0);
+  return sum / indices.length;
 }
 
-function getRiskLevel(exhaustion: number, cynicism: number, efficacy: number): string {
-  const eeHigh = exhaustion >= EE_HIGH;
-  const eeMod  = exhaustion >= EE_MOD;
-  const dpHigh = cynicism   >= DP_HIGH;
-  const dpMod  = cynicism   >= DP_MOD;
-  const paLow  = efficacy   <= PA_LOW;
-  const paMod  = efficacy   <= PA_MOD;
-
-  if (eeHigh && (dpHigh || paLow)) return 'critical';
-  if (eeHigh || (dpHigh && paLow)) return 'high';
-  if (eeMod  || dpMod  || paMod)  return 'medium';
+function getRiskLevel(totalScore: number): string {
+  if (totalScore >= RISK_CRITICAL) return 'critical';
+  if (totalScore >= RISK_HIGH) return 'high';
+  if (totalScore >= RISK_MEDIUM) return 'medium';
   return 'low';
 }
 
@@ -45,28 +47,27 @@ Deno.serve(async (req) => {
   try {
     const { answers, user_id } = await req.json();
 
-    if (!Array.isArray(answers) || answers.length !== 22) {
+    if (!Array.isArray(answers) || answers.length !== TOTAL_QUESTIONS) {
       return new Response(
-        JSON.stringify({ error: '22 réponses MBI requises (scores 0-6).' }),
+        JSON.stringify({ error: `${TOTAL_QUESTIONS} réponses CBI requises (scores 0/25/50/75/100).` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Sum scores per dimension (standard MBI scoring)
-    const exhaustion_score = sumItems(answers, EXHAUSTION_ITEMS); // 0–54
-    const cynicism_score   = sumItems(answers, CYNICISM_ITEMS);   // 0–30
-    const efficacy_score   = sumItems(answers, EFFICACY_ITEMS);   // 0–48
+    // Score per dimension = moyenne des réponses (0–100)
+    const personal_score = dimensionAverage(answers, PERSONAL_INDICES);
+    const work_score = dimensionAverage(answers, WORK_INDICES);
+    const relations_score = dimensionAverage(answers, RELATION_INDICES);
 
-    // Normalize each dimension to 0–100 (higher = more burnout risk)
-    // Efficacy is inverted: low efficacy = high burnout
-    const eeNorm  = (exhaustion_score / EE_MAX) * 100;
-    const dpNorm  = (cynicism_score   / DP_MAX) * 100;
-    const paInv   = ((PA_MAX - efficacy_score) / PA_MAX) * 100;
+    const total_score = (personal_score + work_score + relations_score) / 3;
+    const risk_level = getRiskLevel(total_score);
 
-    // Composite burnout score 0–99 (capped to fit numeric(4,2) column)
-    const total_score = Math.min(99, Math.round((eeNorm + dpNorm + paInv) / 3));
-
-    const risk_level = getRiskLevel(exhaustion_score, cynicism_score, efficacy_score);
+    // DB columns keep their original names from the previous questionnaire:
+    //   exhaustion_score → personal, cynicism_score → work, efficacy_score → relations
+    const exhaustion_score = Math.round(personal_score);
+    const cynicism_score = Math.round(work_score);
+    const efficacy_score = Math.round(relations_score);
+    const total_score_rounded = Math.round(total_score);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -75,7 +76,14 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase
       .from('assessments')
-      .insert({ user_id, exhaustion_score, cynicism_score, efficacy_score, total_score, risk_level })
+      .insert({
+        user_id,
+        exhaustion_score,
+        cynicism_score,
+        efficacy_score,
+        total_score: total_score_rounded,
+        risk_level,
+      })
       .select()
       .single();
 
@@ -86,7 +94,7 @@ Deno.serve(async (req) => {
         exhaustion_score,
         cynicism_score,
         efficacy_score,
-        total_score,
+        total_score: total_score_rounded,
         risk_level,
         assessment_id: data.id,
       }),

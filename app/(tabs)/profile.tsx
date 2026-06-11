@@ -194,7 +194,7 @@ export default function ProfileScreen() {
 }
 
 const FEATURES: { label: string; free: boolean }[] = [
-  { label: 'Diagnostic MBI complet', free: true },
+  { label: 'Diagnostic CBI complet', free: true },
   { label: 'Check-in hebdomadaire', free: true },
   { label: '3 messages IA par mois', free: true },
   { label: 'Historique illimité', free: false },
