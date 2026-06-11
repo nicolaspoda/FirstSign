@@ -87,6 +87,28 @@ export async function checkSubscription(): Promise<SubscriptionTier> {
   }
 }
 
+export async function restorePurchases(): Promise<boolean> {
+  try {
+    ensureInitialized();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Purchases = require('react-native-purchases').default;
+    const customerInfo = await Purchases.restorePurchases();
+    const isPremium = PREMIUM_ENTITLEMENT in customerInfo.entitlements.active;
+    if (!isPremium) return false;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ subscription_tier: 'premium' })
+        .eq('user_id', user.id);
+    }
+    return true;
+  } catch {
+    throw new Error('La restauration des achats a échoué. Veuillez réessayer.');
+  }
+}
+
 export async function canAccess(feature: Feature): Promise<boolean> {
   const tier = await checkSubscription();
   return FEATURES_BY_TIER[tier].includes(feature);

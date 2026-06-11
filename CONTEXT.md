@@ -262,7 +262,12 @@ pour la roadmap détaillée vers 9/10.
   fallback DB (`profiles.subscription_tier`) sur web/Expo Go
 - `canAccess(feature)` basé sur `FEATURES_BY_TIER`
 - `PaywallModal` : présentation des bénéfices, achat annuel (59,99€, badge -33%) ou
-  mensuel (7,99€) — **pas de bouton "Restaurer mes achats"** (cf. section 5, point 10)
+  mensuel (7,99€), puis sous un séparateur fin un lien discret "Restaurer mes achats"
+  qui appelle `restorePurchases()` (entitlement `premium` actif → mise à jour
+  `profiles.subscription_tier` en DB, fermeture du paywall et confirmation ;
+  sinon message "Aucun achat à restaurer" ou message d'erreur en français ; sur
+  web/Expo Go, message indiquant que la restauration nécessite l'application
+  mobile installée)
 
 **Statut : partiel** — logique de détection plateforme/fallback complète, mais achats
 RevenueCat réels non testables sans development build + clé API configurée
@@ -312,6 +317,42 @@ Suppression de compte : **100% fonctionnel**.
 - Guard de session + redirections (auth ↔ onboarding ↔ tabs)
 
 **Statut : 100% fonctionnel.**
+
+### 4.13 Dashboard B2B RH (`app/b2b/*`, `lib/b2b.ts`,
+`supabase/functions/b2b-dashboard`)
+- Espace `/b2b` (route standalone, gère son propre guard — ajouté à
+  `inStandaloneRoute` dans `app/_layout.tsx`), accessible depuis la nouvelle
+  section "Mon entreprise" de `app/(tabs)/profile.tsx`
+- `app/b2b/join.tsx` : saisie d'un code d'invitation (8 caractères
+  alphanumériques) → `joinOrganization()` → RPC Postgres
+  `join_organization_by_code` (`SECURITY DEFINER`, nécessaire car
+  `organizations` n'est lisible que par son admin via RLS)
+- `app/b2b/admin.tsx` : si l'utilisateur n'a pas encore d'organisation,
+  formulaire de création (`createOrganization()`, génère un code via
+  `generateInviteCode()`, retry en cas de collision) ; sinon affiche le nom,
+  le nombre de membres actifs et le code d'invitation avec bouton "Copier"
+  (`expo-clipboard`)
+- `app/b2b/dashboard.tsx` (admin uniquement) : jauge de score moyen d'équipe,
+  graphique de répartition des niveaux de risque (%), carte "membres à risque
+  élevé/critique" (compteurs uniquement), graphique de tendance sur 4
+  semaines, bandeau RGPD permanent ("Données anonymisées — aucun individu ne
+  peut être identifié"), section repliable "Inviter des membres" affichant le
+  code
+- Edge function `b2b-dashboard` : même pattern d'auth JWT que les autres
+  fonctions (`userClient.auth.getUser()` → `adminClient` service role).
+  Vérifie que l'appelant est `admin_user_id` de l'organisation (sinon
+  `403 NOT_ADMIN`), agrège les derniers diagnostics CBI et les 4 derniers
+  check-ins de tous les membres. Si moins de 10 membres ont un diagnostic →
+  `403 INSUFFICIENT_MEMBERS`, message "Pas assez de membres pour afficher les
+  statistiques (minimum 10 requis)". Aucun `user_id`/email n'est jamais
+  renvoyé : uniquement score moyen, distribution des risques (%), nombre de
+  membres à risque élevé/critique, tendance équipe et évolution
+  hebdomadaire (basée sur `wellbeingScore`, cf. `lib/checkin.ts`)
+
+**Statut : 100% fonctionnel** (hors rapport mensuel automatique, non
+implémenté dans cette itération). Tier : accessible gratuit + premium (le
+gating B2B se fait par appartenance à une organisation, pas par
+`subscription_tier`).
 
 ---
 
@@ -365,26 +406,37 @@ Suppression de compte : **100% fonctionnel**.
 
 ### Phase 3 — Lancement (3-4 semaines) → objectif 9/10
 
-- [ ] **8. Dashboard B2B RH**
-  Nouvelle section accessible via un code entreprise. Fonctionnalités : score burnout
-  agrégé anonymisé de l'équipe, alertes équipes à risque (seuil minimum 10 personnes
-  pour le RGPD), rapport mensuel automatique, sans identification individuelle
-  possible. Nouveaux fichiers : `app/b2b/`, `lib/b2b.ts`.
+- [x] **8. Dashboard B2B RH**
+  Section accessible via un code entreprise (8 caractères). Score burnout moyen
+  agrégé anonymisé de l'équipe, distribution des niveaux de risque, compteur de
+  membres à risque élevé/critique (sans identification individuelle), tendance
+  équipe et évolution sur 4 semaines. Refus d'afficher les statistiques en
+  dessous de 10 membres avec données (RGPD). Cf. **section 4.13** pour le détail.
+  Pas de rapport mensuel automatique (non implémenté).
 
-- [ ] **9. Sécurité Edge Functions**
+- [x] **9. Sécurité Edge Functions**
   - [x] `generate-action-plan` n'a aucune vérification serveur du tier premium —
     **fait au point 5** : vérification `profiles.subscription_tier === 'premium'`
     côté serveur (`403 PREMIUM_REQUIRED`), comme dans `ai-companion`.
-  - Les 3 edge functions (`calculate-burnout-score`, `generate-action-plan`,
-    `ai-companion`) tournent avec la service role key et font confiance au `user_id`
-    envoyé par le client dans le body, sans vérifier qu'il correspond au JWT de la
-    requête. → Extraire l'`user_id` du JWT (`supabase.auth.getUser()` côté edge
-    function) plutôt que de l'accepter depuis le client.
+  - [x] Les 3 edge functions (`calculate-burnout-score`, `generate-action-plan`,
+    `ai-companion`) tournaient avec la service role key et faisaient confiance au
+    `user_id` envoyé par le client dans le body, sans vérifier qu'il correspondait
+    au JWT de la requête. → **Corrigé** : chaque fonction extrait maintenant l'
+    `user_id` du JWT (header `Authorization`, vérifié via `userClient.auth.getUser()`,
+    401 `UNAUTHORIZED` si absent/invalide), comme `delete-account` le faisait déjà.
+    Les opérations DB restent sur un client service role séparé (`adminClient`).
+    `generate-action-plan` filtre en plus l'`assessment_id` par `user_id` pour éviter
+    qu'un utilisateur génère un plan à partir du diagnostic d'un autre. Côté client,
+    `lib/api.ts` n'envoie plus `user_id` dans le body (`supabase.functions.invoke`
+    transmet déjà le JWT de session via le header `Authorization`).
 
-- [ ] **10. Restauration des achats RevenueCat**
-  Bouton "Restaurer mes achats" dans `components/PaywallModal.tsx`, appelant
-  `Purchases.restorePurchases()`. Obligatoire pour l'App Store. Nécessite aussi de
-  renseigner `EXPO_PUBLIC_REVENUECAT_KEY` et de tester via un development build.
+- [x] **10. Restauration des achats RevenueCat**
+  Bouton "Restaurer mes achats" dans `components/PaywallModal.tsx` (lien discret sous
+  les boutons d'achat, séparé par une ligne fine), appelant `Purchases.restorePurchases()`
+  via `restorePurchases()` (`lib/subscription.ts`). Sur web/Expo Go, affiche un message
+  indiquant que la restauration nécessite l'application mobile installée. Obligatoire
+  pour l'App Store. Reste à renseigner `EXPO_PUBLIC_REVENUECAT_KEY` et tester via un
+  development build.
 
 - [ ] **11. Build natif Android**
   `eas.json` a déjà des profils `preview` (APK interne) et `production`
@@ -429,8 +481,14 @@ Suppression de compte : **100% fonctionnel**.
   depuis un appareil physique en Wi-Fi peuvent provoquer des erreurs réseau sur
   Expo Go ; le séquentiel est plus fiable et permet d'identifier la table en échec.
 - **Limite IA gratuite (3 messages/mois)** vérifiée à la fois côté client (UX,
-  affichage du compteur) et côté serveur (`ai-companion`, source de vérité) — modèle
-  à reproduire pour `generate-action-plan` (voir section 5, point 9).
+  affichage du compteur) et côté serveur (`ai-companion`, source de vérité).
+- **Authentification des Edge Functions par JWT** : `calculate-burnout-score`,
+  `generate-action-plan`, `ai-companion` et `delete-account` extraient toutes
+  l'`user_id` du JWT de la requête (`Authorization: Bearer <token>`, vérifié via un
+  `userClient` créé avec la clé anonyme + ce header, `userClient.auth.getUser()`),
+  401 `UNAUTHORIZED` si le token est absent/invalide. Les opérations DB utilisent un
+  `adminClient` séparé (service role). Le `user_id` n'est plus jamais accepté depuis
+  le body de la requête.
 - **Rappel hebdomadaire de check-in** programmé automatiquement à la fin du diagnostic
   (`results.tsx`), pas configurable par l'utilisateur actuellement.
 - **Score de risque prédictif** (`lib/burnout.ts`, `calculateRiskScore`) : calcule un
@@ -446,7 +504,7 @@ Suppression de compte : **100% fonctionnel**.
 
 ## Schéma de base de données (résumé)
 
-5 tables, RLS activé partout (`auth.uid() = user_id`) :
+7 tables, RLS activé partout (`auth.uid() = user_id` pour les 5 premières) :
 - `profiles` (1:1 avec `auth.users`, créée par trigger `handle_new_user`,
   contient `subscription_tier` ainsi que le contexte utilisateur de l'onboarding
   enrichi : `sector` (text, secteur d'activité), `remote_work` (text, `'yes' | 'no' |
@@ -459,6 +517,16 @@ Suppression de compte : **100% fonctionnel**.
 - `checkins` (check-ins hebdo, contrainte unique `user_id, year, week_number`)
 - `action_plans` (`actions` jsonb, `completed_actions` jsonb, lié à `assessment_id`)
 - `ai_conversations` (historique de chat, `tokens_used`)
+- `organizations` (B2B, point 8 — `name`, `code` UNIQUE (8 caractères
+  alphanumériques générés par `lib/b2b.ts`), `admin_user_id`. RLS : visible
+  uniquement par `admin_user_id` — un membre non-admin ne peut pas lire la ligne
+  de son organisation directement)
+- `organization_members` (B2B, point 8 — `organization_id`, `user_id`,
+  contrainte unique `(organization_id, user_id)`. RLS : visible par le membre
+  lui-même (`auth.uid() = user_id`) et par l'admin de l'organisation via
+  `EXISTS`. Le flux "rejoindre via code" passe par la fonction RPC
+  `join_organization_by_code` (`SECURITY DEFINER`), qui contourne la RLS de
+  `organizations` pour résoudre le code et insère la ligne d'appartenance)
 
 Migrations :
 - `supabase/migrations/20260602000001_initial_schema.sql` (schéma initial)
@@ -467,5 +535,7 @@ Migrations :
 - `supabase/migrations/20260612000001_user_context.sql` (colonnes de contexte
   utilisateur sur `profiles` : `sector`, `remote_work`, `is_manager`,
   `main_stress_source`)
+- `supabase/migrations/20260613000001_b2b.sql` (tables `organizations` /
+  `organization_members` + RPC `join_organization_by_code`)
 
 Types TS : `types/database.ts`

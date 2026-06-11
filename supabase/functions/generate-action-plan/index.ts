@@ -391,14 +391,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { assessment_id, user_id } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Token manquant.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const supabase = createClient(
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Session invalide.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user_id = user.id;
+
+    const { assessment_id } = await req.json();
+
+    const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('subscription_tier, sector, remote_work, is_manager, main_stress_source')
       .eq('user_id', user_id)
@@ -415,15 +438,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: assessment, error: assessmentError } = await supabase
+    const { data: assessment, error: assessmentError } = await adminClient
       .from('assessments')
       .select('*')
       .eq('id', assessment_id)
+      .eq('user_id', user_id)
       .single();
 
     if (assessmentError) throw assessmentError;
 
-    const { data: recentCheckins } = await supabase
+    const { data: recentCheckins } = await adminClient
       .from('checkins')
       .select('week_number, year, energy, motivation, stress, work_life_balance')
       .eq('user_id', user_id)
@@ -470,7 +494,7 @@ Deno.serve(async (req) => {
       actions = actionsFromWeeks(weekTemplates, assessment_id);
     }
 
-    const { data: plan, error: planError } = await supabase
+    const { data: plan, error: planError } = await adminClient
       .from('action_plans')
       .insert({
         user_id,

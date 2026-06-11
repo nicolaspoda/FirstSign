@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
 import { checkSubscription } from '@/lib/subscription';
 import { deleteAccount } from '@/lib/auth';
+import { getMembershipStatus, type MembershipStatus } from '@/lib/b2b';
 import PaywallModal from '@/components/PaywallModal';
 import type { SubscriptionTier } from '@/types/database';
 
@@ -37,12 +38,14 @@ export default function ProfileScreen() {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [membership, setMembership] = useState<MembershipStatus | null>(null);
 
   useEffect(() => {
     checkSubscription().then((t) => {
       setTier(t);
       setLoadingTier(false);
     });
+    getMembershipStatus().then(setMembership);
   }, []);
 
   async function doSignOut() {
@@ -161,6 +164,56 @@ export default function ProfileScreen() {
               </View>
             );
           })}
+        </View>
+
+        {/* Mon entreprise (B2B) */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Mon entreprise</Text>
+          {!membership ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : membership.isAdmin ? (
+            <>
+              <TouchableOpacity
+                style={styles.b2bButton}
+                onPress={() => router.push('/b2b/dashboard')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.b2bButtonText}>Voir le dashboard équipe</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.b2bButtonSecondary}
+                onPress={() => router.push('/b2b/admin')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.b2bButtonSecondaryText}>Gérer mon organisation</Text>
+              </TouchableOpacity>
+            </>
+          ) : membership.isMember ? (
+            <View style={styles.b2bMemberRow}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
+              <Text style={styles.b2bMemberText}>
+                Vous êtes membre d'une organisation. Vos données sont incluses, de façon
+                anonymisée, dans le suivi d'équipe.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.b2bButton}
+                onPress={() => router.push('/b2b/join')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.b2bButtonText}>Rejoindre mon entreprise</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.b2bButtonSecondary}
+                onPress={() => router.push('/b2b/admin')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.b2bButtonSecondaryText}>Créer mon organisation (RH)</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Déconnexion */}
@@ -430,6 +483,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#B45309',
+  },
+  b2bButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  b2bButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  b2bButtonSecondary: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  b2bButtonSecondaryText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  b2bMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  b2bMemberText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   signOutButton: {
     backgroundColor: Colors.surface,

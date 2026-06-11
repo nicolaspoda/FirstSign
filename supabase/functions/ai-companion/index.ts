@@ -30,15 +30,38 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, user_id } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Token manquant.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const supabase = createClient(
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Session invalide.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user_id = user.id;
+
+    const { messages } = await req.json();
+
+    const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
     // Check subscription tier
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('subscription_tier, sector, remote_work, is_manager, main_stress_source')
       .eq('user_id', user_id)
@@ -52,7 +75,7 @@ Deno.serve(async (req) => {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { count } = await supabase
+      const { count } = await adminClient
         .from('ai_conversations')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user_id)
@@ -70,7 +93,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch latest assessment and last 12 check-ins
-    const { data: assessment } = await supabase
+    const { data: assessment } = await adminClient
       .from('assessments')
       .select('exhaustion_score, cynicism_score, efficacy_score, risk_level')
       .eq('user_id', user_id)
@@ -78,7 +101,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const { data: recentCheckins } = await supabase
+    const { data: recentCheckins } = await adminClient
       .from('checkins')
       .select('week_number, year, energy, motivation, stress, work_life_balance, created_at')
       .eq('user_id', user_id)
@@ -186,7 +209,7 @@ Deno.serve(async (req) => {
 
     const allMessages = [...messages, { role: 'assistant', content: responseText }];
 
-    await supabase
+    await adminClient
       .from('ai_conversations')
       .insert({ user_id, messages: allMessages, tokens_used });
 

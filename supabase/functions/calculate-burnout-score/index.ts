@@ -45,7 +45,30 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { answers, user_id } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Token manquant.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'UNAUTHORIZED', message: 'Session invalide.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user_id = user.id;
+
+    const { answers } = await req.json();
 
     if (!Array.isArray(answers) || answers.length !== TOTAL_QUESTIONS) {
       return new Response(
@@ -69,12 +92,12 @@ Deno.serve(async (req) => {
     const efficacy_score = Math.round(relations_score);
     const total_score_rounded = Math.round(total_score);
 
-    const supabase = createClient(
+    const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('assessments')
       .insert({
         user_id,

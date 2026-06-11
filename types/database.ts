@@ -159,6 +159,49 @@ export interface Database {
           tokens_used?: number;
         };
       };
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          code: string;
+          created_at: string;
+          admin_user_id: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          code: string;
+          created_at?: string;
+          admin_user_id: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          code?: string;
+          created_at?: string;
+          admin_user_id?: string;
+        };
+      };
+      organization_members: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string;
+          joined_at?: string;
+        };
+      };
     };
   };
 }
@@ -182,3 +225,5 @@ export type Assessment = Database['public']['Tables']['assessments']['Row'];
 export type Checkin = Database['public']['Tables']['checkins']['Row'];
 export type ActionPlan = Database['public']['Tables']['action_plans']['Row'];
 export type AiConversation = Database['public']['Tables']['ai_conversations']['Row'];
+export type Organization = Database['public']['Tables']['organizations']['Row'];
+export type OrganizationMember = Database['public']['Tables']['organization_members']['Row'];

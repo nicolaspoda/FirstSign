@@ -6,12 +6,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
-import { isExpoGo } from '@/lib/subscription';
+import { isExpoGo, restorePurchases } from '@/lib/subscription';
 
 export interface PaywallModalProps {
   visible: boolean;
@@ -28,6 +29,7 @@ const BENEFITS = [
 
 export default function PaywallModal({ visible, onClose, onSuccess }: PaywallModalProps) {
   const [purchasing, setPurchasing] = useState<'monthly' | 'annual' | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handlePurchase(type: 'monthly' | 'annual') {
@@ -66,6 +68,29 @@ export default function PaywallModal({ visible, onClose, onSuccess }: PaywallMod
       }
     } finally {
       setPurchasing(null);
+    }
+  }
+
+  async function handleRestore() {
+    if (Platform.OS === 'web' || isExpoGo) {
+      setError("La restauration n'est disponible que sur l'application mobile installée.");
+      return;
+    }
+    setError(null);
+    setRestoring(true);
+    try {
+      const restored = await restorePurchases();
+      if (restored) {
+        onSuccess?.();
+        onClose();
+        Alert.alert('Restauration réussie', 'Abonnement restauré avec succès ✓');
+      } else {
+        setError('Aucun achat à restaurer.');
+      }
+    } catch (err: any) {
+      setError(err?.message ?? 'La restauration a échoué. Veuillez réessayer.');
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -120,9 +145,9 @@ export default function PaywallModal({ visible, onClose, onSuccess }: PaywallMod
             ) : null}
 
             <TouchableOpacity
-              style={[styles.annualButton, purchasing !== null && styles.buttonDisabled]}
+              style={[styles.annualButton, (purchasing !== null || restoring) && styles.buttonDisabled]}
               onPress={() => handlePurchase('annual')}
-              disabled={purchasing !== null}
+              disabled={purchasing !== null || restoring}
               activeOpacity={0.85}
             >
               {purchasing === 'annual' ? (
@@ -141,15 +166,30 @@ export default function PaywallModal({ visible, onClose, onSuccess }: PaywallMod
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.monthlyButton, purchasing !== null && styles.buttonDisabled]}
+              style={[styles.monthlyButton, (purchasing !== null || restoring) && styles.buttonDisabled]}
               onPress={() => handlePurchase('monthly')}
-              disabled={purchasing !== null}
+              disabled={purchasing !== null || restoring}
               activeOpacity={0.85}
             >
               {purchasing === 'monthly' ? (
                 <ActivityIndicator color={Colors.primary} />
               ) : (
                 <Text style={styles.monthlyButtonText}>7,99€ / mois</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.restoreSeparator} />
+
+            <TouchableOpacity
+              style={styles.restoreButton}
+              onPress={handleRestore}
+              disabled={purchasing !== null || restoring}
+              activeOpacity={0.6}
+            >
+              {restoring ? (
+                <ActivityIndicator size="small" color={Colors.textMuted} />
+              ) : (
+                <Text style={styles.restoreButtonText}>Restaurer mes achats</Text>
               )}
             </TouchableOpacity>
 
@@ -338,6 +378,21 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.65,
+  },
+  restoreSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border,
+    marginBottom: 16,
+  },
+  restoreButton: {
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  restoreButtonText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    textDecorationLine: 'underline',
   },
   legalText: {
     fontSize: 11,

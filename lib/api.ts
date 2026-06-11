@@ -7,7 +7,7 @@ import type { ActionPlan, RiskLevel } from '@/types/database';
 // the FunctionsHttpError's `context` (the raw Response). Re-throw an Error whose
 // `message` is the human-readable text and `status` is the real HTTP status, so
 // callers can keep checking `err.status` / `err.message`.
-async function throwFunctionError(error: unknown): Promise<never> {
+export async function throwFunctionError(error: unknown): Promise<never> {
   if (error instanceof FunctionsHttpError) {
     const body = await error.context.json().catch(() => null);
     if (body?.error) {
@@ -40,27 +40,24 @@ export interface AiResponse {
 }
 
 export async function calculateBurnoutScore(answers: number[]): Promise<BurnoutResult> {
-  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase.functions.invoke('calculate-burnout-score', {
-    body: { answers, user_id: user?.id },
+    body: { answers },
   });
   if (error) throw error;
   return data as BurnoutResult;
 }
 
 export async function generateActionPlan(assessmentId: string): Promise<ActionPlan> {
-  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase.functions.invoke('generate-action-plan', {
-    body: { assessment_id: assessmentId, user_id: user?.id },
+    body: { assessment_id: assessmentId },
   });
   if (error) await throwFunctionError(error);
   return data as ActionPlan;
 }
 
 export async function sendAiMessage(messages: Message[]): Promise<AiResponse> {
-  const { data: { user } } = await supabase.auth.getUser();
   const { data, error } = await supabase.functions.invoke('ai-companion', {
-    body: { messages, user_id: user?.id },
+    body: { messages },
   });
   if (error) await throwFunctionError(error);
   return data as AiResponse;

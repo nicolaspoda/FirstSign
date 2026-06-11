@@ -225,7 +225,10 @@ export default function ContextScreen() {
 
       <PaywallModal
         visible={showPaywall}
-        onClose={() => setShowPaywall(false)}
+        onClose={() => {
+          setShowPaywall(false);
+          router.replace('/(tabs)');
+        }}
         onSuccess={() => {
           setShowPaywall(false);
           proceedToPlan().catch((err: any) => {
