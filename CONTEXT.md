@@ -7,12 +7,19 @@
 
 ## Liens importants
 
-- **CGU** : https://nicolaspoda.github.io/burnout-app/cgu
-- **Politique de confidentialité** : https://nicolaspoda.github.io/burnout-app/privacy
-- Source des pages légales : `/legal/` (`cgu.md`, `privacy.md` + versions HTML),
-  déployées via `.github/workflows/deploy-legal.yml` (GitHub Pages, branche `main`).
-  ⚠️ Activer "GitHub Pages → Source : GitHub Actions" dans les settings du repo si
-  ce n'est pas déjà fait, sinon le premier déploiement échouera.
+- **CGU** : https://burnout-app-legal.netlify.app/cgu
+- **Politique de confidentialité** : https://burnout-app-legal.netlify.app/privacy
+- Source des pages légales : `/legal/` (`cgu.md`, `privacy.md` + versions HTML).
+- **Hébergement : Netlify** (et non GitHub Pages — le repo `burnout-app` est privé,
+  GitHub Pages gratuit ne fonctionne que sur repos publics ou avec GitHub Pro).
+  Configuration du site Netlify (à faire une fois, via netlify.com → "Add new site →
+  Import an existing project" → connecter le repo GitHub) :
+  - Base directory : `legal`
+  - Build command : (vide)
+  - Publish directory : `legal`
+  - Déploiement automatique à chaque push sur `main`.
+  Site Netlify : `burnout-app-legal` (renommé depuis le nom auto-généré), URLs
+  vérifiées et fonctionnelles.
 
 ---
 
