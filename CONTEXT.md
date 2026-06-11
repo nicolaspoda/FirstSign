@@ -7,10 +7,12 @@
 
 ## 1. Idée de l'app / positionnement
 
-**BurnoutApp** est une application mobile (iOS/Android/Web via Expo) de **dépistage et
-suivi du burnout professionnel**, positionnée comme un outil d'auto-évaluation et
-d'accompagnement quotidien — pas un dispositif médical, pas un substitut à un
-professionnel de santé.
+**Tagline** : *« Détectez les signes avant-coureurs du burnout avant qu'il ne soit trop tard »*
+
+**BurnoutApp** est une application mobile (iOS/Android/Web via Expo) de **prévention et
+détection précoce du burnout professionnel**, positionnée comme un outil
+d'auto-évaluation et d'accompagnement quotidien — pas un dispositif médical, pas un
+substitut à un professionnel de santé.
 
 **Proposition de valeur :**
 - Un **diagnostic standardisé et reconnu** (CBI — Copenhagen Burnout Inventory,
@@ -36,10 +38,35 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
   (2 dernières semaines) + 3 messages IA/mois.
 - **Premium** (abonnement via RevenueCat — 7,99€/mois ou 59,99€/an) : plan d'action
   8 semaines, historique illimité, IA illimitée, bibliothèque d'exercices.
+- **B2B** (phase 3, voir section 5) : 4-8€/employé/mois, vendu aux RH — dashboard
+  agrégé et anonymisé pour les équipes.
+
+**Concurrent principal** : BurnoutGuard (4,99$/mois) — un tracker simple, sans
+questionnaire scientifique (MBI/CBI) ni programme structuré. Avantage BurnoutApp :
+CBI scientifique + programme 8 semaines + IA personnalisée.
+
+**Évaluation actuelle** : ~6,5/10 en tant que produit commercial — voir section 5
+pour la roadmap détaillée vers 9/10.
 
 ---
 
-## 2. Stack technique complète
+## 2. Décisions produit importantes déjà prises
+
+- **MBI → CBI** : le Maslach Burnout Inventory (payant) a été remplacé par le
+  Copenhagen Burnout Inventory, libre de droits et scientifiquement validé.
+- **Gemini 2.5 Flash plutôt qu'un modèle Anthropic** pour le compagnon IA — choix
+  motivé par la gratuité de l'API Gemini.
+- **Android avant iOS** pour le lancement : compte développeur Google (25$, unique)
+  vs compte développeur Apple (99$/an) — cf. section 5, point 11. iOS sera abordé
+  une fois que l'app génère des revenus.
+- **CBI sans dimension « clients »** : la dimension « épuisement lié aux clients » du
+  CBI original a été remplacée par « personnes avec qui on travaille » (collègues,
+  managers, etc.), plus pertinente pour un public salarié au sens large (cf. section
+  4.2 / `lib/burnout.ts` pour le détail des 19 questions).
+
+---
+
+## 3. Stack technique complète
 
 ### Frontend
 - **Expo SDK 54** (`expo: "54"`) — ⚠️ voir AGENTS.md, ne jamais bumper sans vérifier
@@ -75,12 +102,19 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
 - `scheme: "burnout-app"`, bundle id `com.burnoutapp` (iOS/Android)
 - EAS project id configuré (`extra.eas.projectId`)
 - Couleur de marque : `#1D9E75` (splash screen, icône adaptive Android)
+- Pas de champ `description` actuellement (à ajouter, cf. section 5, point 1)
+
+### Config EAS (`eas.json`)
+- Profils `development` (dev client iOS simulator), `preview` (Android APK interne),
+  `production` (Android app-bundle, `autoIncrement`)
+- `submit.production.android` référence `./google-service-account.json` —
+  **fichier absent du repo** (à fournir avant `eas submit`, cf. section 5, point 11)
 
 ---
 
-## 3. Fonctionnalités implémentées
+## 4. Fonctionnalités implémentées
 
-### 3.1 Authentification (`lib/auth.ts`, `hooks/useAuth.ts`, `app/(auth)/*`)
+### 4.1 Authentification (`lib/auth.ts`, `hooks/useAuth.ts`, `app/(auth)/*`)
 - Inscription email/mot de passe avec écran "vérifiez votre email" (gestion du cas
   `identities.length === 0` = compte déjà existant, message anti-énumération)
 - Connexion, déconnexion (confirmation à 2 étapes)
@@ -93,7 +127,7 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
 
 **Statut : 100% fonctionnel.**
 
-### 3.2 Diagnostic CBI (onboarding) (`app/(onboarding)/*`, `lib/burnout.ts`,
+### 4.2 Diagnostic CBI (onboarding) (`app/(onboarding)/*`, `lib/burnout.ts`,
 `supabase/functions/calculate-burnout-score`)
 - Questionnaire **Copenhagen Burnout Inventory (CBI), 19 questions**, réponses sur
   5 boutons textuels (échelle "fréquence" ou "intensité" selon la question, valeurs
@@ -116,10 +150,12 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
   hebdomadaire, invalidation du cache dashboard, mention CBI en bas de page
 - `plan-preview.tsx` : aperçu des 3 premières actions de la semaine 1 après génération
   du plan
+- `welcome.tsx` contient déjà l'accroche "Détectez votre burnout avant qu'il soit trop
+  tard" — proche de la tagline officielle mais à harmoniser (cf. section 5, point 1)
 
 **Statut : 100% fonctionnel.** Tier : **gratuit**.
 
-### 3.3 Dashboard (`app/(tabs)/index.tsx`, `hooks/useBurnoutData.ts`)
+### 4.3 Dashboard (`app/(tabs)/index.tsx`, `hooks/useBurnoutData.ts`)
 - Score global /100 + badge de risque coloré
 - Badge de tendance (amélioration/stable/déclin) via `detectTrend()`
 - Bandeau d'alerte rouge si `shouldAlert()` détecte 3 check-ins en chute monotone
@@ -132,14 +168,14 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
 
 **Statut : 100% fonctionnel.** Tier : **gratuit + premium** (identique pour les deux).
 
-### 3.4 Historique (`app/(tabs)/history.tsx`)
+### 4.4 Historique (`app/(tabs)/history.tsx`)
 - Liste des check-ins (date, semaine ISO, score de bien-être, mini-barres par métrique)
 - **Gratuit : 2 derniers check-ins seulement** (`FREE_LIMIT = 2`)
 - **Premium : historique illimité**, bloc d'upsell pour les utilisateurs gratuits
 
 **Statut : 100% fonctionnel.**
 
-### 3.5 Plan d'action 8 semaines (`app/(tabs)/plan.tsx`, `lib/planProgress.ts`,
+### 4.5 Plan d'action 8 semaines (`app/(tabs)/plan.tsx`, `lib/planProgress.ts`,
 `supabase/functions/generate-action-plan`)
 - Génération d'un programme **8 semaines × 3 actions**, choisi parmi 4 jeux de
   templates (critical/high/medium/low) entièrement rédigés en français
@@ -152,9 +188,9 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
 - Lien vers la bibliothèque d'exercices (premium)
 
 **Statut : 100% fonctionnel côté UI.** Tier : **premium** (gating client uniquement,
-voir section 4).
+voir section 5, point 9, pour la sécurisation côté serveur).
 
-### 3.6 Bibliothèque d'exercices (`app/exercises.tsx`, `lib/exercises.ts`)
+### 4.6 Bibliothèque d'exercices (`app/exercises.tsx`, `lib/exercises.ts`)
 - 14 exercices (5 respiration, 5 pleine conscience, 5 restructuration cognitive 
   — vérifier le compte exact dans `lib/exercises.ts`), chacun avec instructions
   détaillées en français, niveau (débutant/intermédiaire/avancé), durée
@@ -163,7 +199,7 @@ voir section 4).
 
 **Statut : 100% fonctionnel.** Tier : **premium**.
 
-### 3.7 Compagnon IA (`app/(tabs)/chat.tsx`, `supabase/functions/ai-companion`)
+### 4.7 Compagnon IA (`app/(tabs)/chat.tsx`, `supabase/functions/ai-companion`)
 - Chat avec rendu enrichi (gras, listes), indicateur de frappe animé
 - Prompt système personnalisé avec les scores du dernier diagnostic
 - Appel **Gemini 2.5 Flash**, gestion des erreurs 429/503 (`SERVICE_UNAVAILABLE`)
@@ -171,38 +207,44 @@ voir section 4).
 - Limite **3 conversations/mois** pour les utilisateurs gratuits — **vérifiée
   côté serveur ET client** (la seule des 3 edge functions à le faire correctement)
 - Disclaimer "ne remplace pas un professionnel de santé"
+- N'utilise actuellement que le **dernier diagnostic CBI** comme contexte — pas
+  l'historique des check-ins (cf. section 5, point 2)
 
 **Statut : 100% fonctionnel.** Tier : **gratuit (3/mois) + premium (illimité)**.
 
-### 3.8 Abonnement / Paywall (`lib/subscription.ts`, `components/PaywallModal.tsx`)
+### 4.8 Abonnement / Paywall (`lib/subscription.ts`, `components/PaywallModal.tsx`)
 - `checkSubscription()` : RevenueCat sur natif (entitlement `premium`),
   fallback DB (`profiles.subscription_tier`) sur web/Expo Go
 - `canAccess(feature)` basé sur `FEATURES_BY_TIER`
 - `PaywallModal` : présentation des bénéfices, achat annuel (59,99€, badge -33%) ou
-  mensuel (7,99€)
+  mensuel (7,99€) — **pas de bouton "Restaurer mes achats"** (cf. section 5, point 10)
 
 **Statut : partiel** — logique de détection plateforme/fallback complète, mais achats
-RevenueCat réels non testables sans development build + clé API configurée.
+RevenueCat réels non testables sans development build + clé API configurée
+(`EXPO_PUBLIC_REVENUECAT_KEY` non renseignée).
 Incohérence mineure : les features `checkin_2weeks`/`ai_3messages` sont définies mais
-jamais vérifiées via `canAccess` (limites codées en dur ailleurs).
+jamais vérifiées via `canAccess` (limites codées en dur ailleurs) — cf. section 5,
+"Nettoyage mineur".
 
-### 3.9 Profil (`app/(tabs)/profile.tsx`)
+### 4.9 Profil (`app/(tabs)/profile.tsx`)
 - Avatar (initiales), badge de tier, carte d'upgrade si gratuit
 - Liste des fonctionnalités par tier
 - Déconnexion (confirmation 2 étapes)
 - Lien "Mode dev" (visible seulement en `__DEV__`)
 - Liens légaux CGU/confidentialité → **placeholders `#` non fonctionnels**
 - "Version 1.0.0"
+- **Pas de bouton "Supprimer mon compte"** (cf. section 5, point 3)
 
-**Statut : partiel** — voir section 4 (CGU/confidentialité manquantes).
+**Statut : partiel** — voir section 5, points 3 et 7 (suppression de compte,
+CGU/confidentialité manquantes).
 
-### 3.10 Notifications (`lib/notifications.ts`)
+### 4.10 Notifications (`lib/notifications.ts`)
 - Rappel hebdomadaire (lundi 9h) "Faites votre check-in burnout de la semaine"
 - No-op propre sur web
 
 **Statut : 100% fonctionnel** sur natif. Tier : gratuit + premium.
 
-### 3.11 Outils de développement (`app/dev-tools.tsx`)
+### 4.11 Outils de développement (`app/dev-tools.tsx`)
 - Visible uniquement si `__DEV__` (strippé en prod par Metro)
 - Simuler 4 semaines de check-ins (tendance croissante)
 - Simuler une dégradation (déclenche l'alerte)
@@ -212,7 +254,7 @@ jamais vérifiées via `canAccess` (limites codées en dur ailleurs).
 
 **Statut : 100% fonctionnel.**
 
-### 3.12 Layout / navigation globale (`app/_layout.tsx`, `app/(tabs)/_layout.tsx`)
+### 4.12 Layout / navigation globale (`app/_layout.tsx`, `app/(tabs)/_layout.tsx`)
 - Bandeau hors-ligne (NetInfo)
 - Tabs : Accueil, Historique, Plan, Chat, Profil
 - Guard de session + redirections (auth ↔ onboarding ↔ tabs)
@@ -221,38 +263,97 @@ jamais vérifiées via `canAccess` (limites codées en dur ailleurs).
 
 ---
 
-## 4. Ce qui reste à faire
+## 5. Roadmap vers le 9/10
 
-### Sécurité — priorité haute
-1. **`generate-action-plan` n'a aucune vérification serveur du tier premium.**
-   Le gating repose entièrement sur le client (`canAccess('action_plan')`). Un appel
-   direct à l'edge function par un utilisateur gratuit générerait quand même un plan.
-   → Ajouter une vérification `profiles.subscription_tier === 'premium'` côté serveur,
-   comme c'est déjà fait dans `ai-companion`.
-2. **Les 3 edge functions font confiance au `user_id` envoyé par le client** (elles
-   tournent avec la service role key, sans vérifier que ce `user_id` correspond au JWT
-   de la requête). → Extraire l'`user_id` du JWT (`supabase.auth.getUser()` côté edge
-   function avec le token de la requête) plutôt que de l'accepter dans le body.
+### Phase 1 — Rapide (quelques jours, 100% gratuit) → objectif 7,5/10
 
-### Fonctionnalités manquantes
-3. **CGU / Politique de confidentialité** : liens actuellement `Linking.openURL('#')`
-   dans `app/(tabs)/profile.tsx`. Nécessaire avant toute soumission App
-   Store/Play Store.
-4. **Suppression de compte** : aucune fonctionnalité de suppression de compte/données
-   par l'utilisateur (obligatoire RGPD + souvent requis par Apple). À ajouter dans
-   Profil (suppression des lignes liées + `auth.users` via une edge function avec
-   service role, ou `supabase.auth.admin.deleteUser`).
+- [ ] **1. Repositionnement messaging**
+  Faire passer tous les textes de l'app de "mesurer ton burnout" vers "détecter les
+  signes avant-coureurs" (tagline officielle, cf. section 1).
+  Fichiers concernés : `app/(onboarding)/welcome.tsx` (déjà proche, à harmoniser),
+  `app/(onboarding)/results.tsx`, `app/(tabs)/profile.tsx`, `app.json` (ajouter un
+  champ `description`, actuellement absent), et tous les textes UI pertinents.
 
-### Nettoyage / cohérence mineure
-5. Les features `checkin_2weeks` et `ai_3messages` dans `lib/subscription.ts` ne sont
-   jamais utilisées via `canAccess()` — soit les utiliser réellement (remplacer les
-   constantes codées en dur `FREE_LIMIT`/`FREE_MONTHLY_LIMIT`), soit les supprimer.
-6. Configuration RevenueCat (clé API `EXPO_PUBLIC_REVENUECAT_KEY`) à renseigner et
-   tester via un development build avant la mise en prod des achats in-app.
+- [ ] **2. IA avec historique complet**
+  Modifier `supabase/functions/ai-companion/index.ts` pour injecter les 12 dernières
+  semaines de check-ins (table `checkins`) dans le contexte envoyé à Gemini, en plus
+  du dernier diagnostic CBI déjà utilisé. Exemple de ce que l'IA pourra dire :
+  "Je vois que ton énergie baisse depuis 3 semaines consécutives."
+
+- [ ] **3. Suppression du compte**
+  Bouton "Supprimer mon compte" dans `app/(tabs)/profile.tsx`. Doit supprimer toutes
+  les données Supabase de l'utilisateur (`profiles`, `assessments`, `checkins`,
+  `action_plans`, `ai_conversations`) puis le compte `auth.users` (edge function avec
+  service role, ou `supabase.auth.admin.deleteUser`). Obligatoire pour l'App Store.
+
+### Phase 2 — Différenciation (1-2 semaines, 100% gratuit) → objectif 8,5/10
+
+- [ ] **4. Score de risque prédictif**
+  Algorithme calculant un % de risque de dégradation dans les 4 prochaines semaines,
+  basé sur : la tendance des check-ins, l'évolution du score CBI, et la fréquence
+  d'utilisation. À afficher dans le dashboard, ex. : "Risque de dégradation : 73% ⚠️".
+  Fichiers : `lib/burnout.ts`, `app/(tabs)/index.tsx`.
+
+- [ ] **5. Plan d'action IA dynamique**
+  Remplacer les 4 jeux de templates statiques (critical/high/medium/low, cf. 4.5) par
+  une génération Gemini basée sur le profil CBI complet + le contexte utilisateur
+  collecté au point 6. Fichier : `supabase/functions/generate-action-plan/index.ts`.
+
+- [ ] **6. Onboarding enrichi**
+  Collecter 3-4 informations après le CBI : secteur d'activité, télétravail
+  (oui/non/hybride), rôle (manager ou non), principale source de stress — pour
+  personnaliser le plan d'action et le compagnon IA.
+  Nouveau fichier : `app/(onboarding)/context.tsx`.
+
+- [ ] **7. CGU + Politique de confidentialité**
+  Remplacer les liens placeholder `Linking.openURL('#')` dans `app/(tabs)/profile.tsx`
+  par de vraies URLs (pages à héberger sur Notion ou GitHub Pages).
+
+### Phase 3 — Lancement (3-4 semaines) → objectif 9/10
+
+- [ ] **8. Dashboard B2B RH**
+  Nouvelle section accessible via un code entreprise. Fonctionnalités : score burnout
+  agrégé anonymisé de l'équipe, alertes équipes à risque (seuil minimum 10 personnes
+  pour le RGPD), rapport mensuel automatique, sans identification individuelle
+  possible. Nouveaux fichiers : `app/b2b/`, `lib/b2b.ts`.
+
+- [ ] **9. Sécurité Edge Functions**
+  - `generate-action-plan` n'a aucune vérification serveur du tier premium : le
+    gating repose entièrement sur le client (`canAccess('action_plan')`). Un appel
+    direct à l'edge function par un compte gratuit générerait quand même un plan.
+    → Ajouter une vérification `profiles.subscription_tier === 'premium'` côté
+    serveur, comme c'est déjà fait dans `ai-companion`.
+  - Les 3 edge functions (`calculate-burnout-score`, `generate-action-plan`,
+    `ai-companion`) tournent avec la service role key et font confiance au `user_id`
+    envoyé par le client dans le body, sans vérifier qu'il correspond au JWT de la
+    requête. → Extraire l'`user_id` du JWT (`supabase.auth.getUser()` côté edge
+    function) plutôt que de l'accepter depuis le client.
+
+- [ ] **10. Restauration des achats RevenueCat**
+  Bouton "Restaurer mes achats" dans `components/PaywallModal.tsx`, appelant
+  `Purchases.restorePurchases()`. Obligatoire pour l'App Store. Nécessite aussi de
+  renseigner `EXPO_PUBLIC_REVENUECAT_KEY` et de tester via un development build.
+
+- [ ] **11. Build natif Android**
+  `eas.json` a déjà des profils `preview` (APK interne) et `production`
+  (app-bundle, `autoIncrement`) pour Android, mais `google-service-account.json`
+  (requis pour `eas submit`) est absent du repo. Finaliser la config et soumettre sur
+  Google Play Store (25$ unique). Stratégie confirmée : Android d'abord, iOS ensuite
+  une fois l'app génératrice de revenus (cf. section 2).
+
+- [ ] **12. Validation terrain**
+  20-50 bêta-testeurs pendant 4 semaines. Collecter les retours, itérer. C'est ce qui
+  fait passer de 8,5 à 9/10.
+
+### Nettoyage mineur (sans urgence)
+
+- Les features `checkin_2weeks` et `ai_3messages` dans `lib/subscription.ts` ne sont
+  jamais utilisées via `canAccess()` — soit les utiliser réellement (remplacer les
+  constantes codées en dur `FREE_LIMIT`/`FREE_MONTHLY_LIMIT`), soit les supprimer.
 
 ---
 
-## 5. Décisions architecturales importantes
+## 6. Décisions architecturales importantes
 
 - **Calcul des scores CBI côté serveur** (`calculate-burnout-score`) — la copie dans
   `lib/burnout.ts` existe pour les constantes/types partagés (questions, libellés
@@ -277,7 +378,7 @@ jamais vérifiées via `canAccess` (limites codées en dur ailleurs).
   Expo Go ; le séquentiel est plus fiable et permet d'identifier la table en échec.
 - **Limite IA gratuite (3 messages/mois)** vérifiée à la fois côté client (UX,
   affichage du compteur) et côté serveur (`ai-companion`, source de vérité) — modèle
-  à reproduire pour `generate-action-plan` (voir section 4, point 1).
+  à reproduire pour `generate-action-plan` (voir section 5, point 9).
 - **Rappel hebdomadaire de check-in** programmé automatiquement à la fin du diagnostic
   (`results.tsx`), pas configurable par l'utilisateur actuellement.
 
