@@ -209,11 +209,19 @@ export default function ProfileScreen() {
 
         <View style={styles.legalSection}>
           <View style={styles.legalLinks}>
-            <TouchableOpacity onPress={() => Linking.openURL('#').catch(() => {})}>
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL('https://nicolaspoda.github.io/burnout-app/cgu').catch(() => {})
+              }
+            >
               <Text style={styles.legalLink}>Conditions d'utilisation</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
-            <TouchableOpacity onPress={() => Linking.openURL('#').catch(() => {})}>
+            <TouchableOpacity
+              onPress={() =>
+                Linking.openURL('https://nicolaspoda.github.io/burnout-app/privacy').catch(() => {})
+              }
+            >
               <Text style={styles.legalLink}>Politique de confidentialité</Text>
             </TouchableOpacity>
           </View>

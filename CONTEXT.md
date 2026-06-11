@@ -5,6 +5,17 @@
 
 ---
 
+## Liens importants
+
+- **CGU** : https://nicolaspoda.github.io/burnout-app/cgu
+- **Politique de confidentialité** : https://nicolaspoda.github.io/burnout-app/privacy
+- Source des pages légales : `/legal/` (`cgu.md`, `privacy.md` + versions HTML),
+  déployées via `.github/workflows/deploy-legal.yml` (GitHub Pages, branche `main`).
+  ⚠️ Activer "GitHub Pages → Source : GitHub Actions" dans les settings du repo si
+  ce n'est pas déjà fait, sinon le premier déploiement échouera.
+
+---
+
 ## 1. Idée de l'app / positionnement
 
 **Tagline** : *« Détectez les signes avant-coureurs du burnout avant qu'il ne soit trop tard »*
@@ -103,7 +114,7 @@ pour la roadmap détaillée vers 9/10.
 - `scheme: "burnout-app"`, bundle id `com.burnoutapp` (iOS/Android)
 - EAS project id configuré (`extra.eas.projectId`)
 - Couleur de marque : `#1D9E75` (splash screen, icône adaptive Android)
-- Pas de champ `description` actuellement (à ajouter, cf. section 5, point 1)
+- Champ `description` renseigné (tagline officielle, cf. section 5, point 1)
 
 ### Config EAS (`eas.json`)
 - Profils `development` (dev client iOS simulator), `preview` (Android APK interne),
@@ -151,8 +162,8 @@ pour la roadmap détaillée vers 9/10.
   hebdomadaire, invalidation du cache dashboard, mention CBI en bas de page
 - `plan-preview.tsx` : aperçu des 3 premières actions de la semaine 1 après génération
   du plan
-- `welcome.tsx` contient déjà l'accroche "Détectez votre burnout avant qu'il soit trop
-  tard" — proche de la tagline officielle mais à harmoniser (cf. section 5, point 1)
+- `welcome.tsx` reprend désormais la tagline officielle "Détectez les signes
+  avant-coureurs du burnout" (harmonisé au point 1 de la section 5)
 - `context.tsx` : écran d'onboarding enrichi affiché **uniquement après le tout premier
   diagnostic** (pas de diagnostic précédent) **et** si le contexte n'a pas encore été
   renseigné (`profiles.sector`, `remote_work`, `main_stress_source` tous `NULL`).
@@ -339,9 +350,11 @@ Suppression de compte : **100% fonctionnel**.
   personnaliser le plan d'action et le compagnon IA.
   Nouveau fichier : `app/(onboarding)/context.tsx`.
 
-- [ ] **7. CGU + Politique de confidentialité**
-  Remplacer les liens placeholder `Linking.openURL('#')` dans `app/(tabs)/profile.tsx`
-  par de vraies URLs (pages à héberger sur Notion ou GitHub Pages).
+- [x] **7. CGU + Politique de confidentialité**
+  Pages créées dans `/legal/` (`cgu.md` / `privacy.md` + versions HTML hébergées),
+  déployées sur GitHub Pages via `.github/workflows/deploy-legal.yml` (push sur
+  `main`). Liens mis à jour dans `app/(tabs)/profile.tsx` — voir section
+  "Liens importants" ci-dessous.
 
 ### Phase 3 — Lancement (3-4 semaines) → objectif 9/10
 
