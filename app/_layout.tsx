@@ -74,9 +74,11 @@ export default function RootLayout() {
     const inTabs       = segments[0] === '(tabs)';
     // Dev-only routes that should not trigger auth redirects
     const inDevRoute   = __DEV__ && segments[0] === 'dev-tools';
+    // Standalone screens reachable from within the tabs that manage their own guard
+    const inStandaloneRoute = segments[0] === 'exercises';
 
     async function redirect() {
-      if (inDevRoute) return; // dev screen manages its own guard
+      if (inDevRoute || inStandaloneRoute) return; // these screens manage their own guard
 
       if (!session) {
         if (!inAuthGroup && !inOnboarding) {

@@ -1,0 +1,281 @@
+export type ExerciseCategory = 'breathing' | 'mindfulness' | 'cognitive';
+export type ExerciseLevel = 'débutant' | 'intermédiaire' | 'avancé';
+
+export interface Exercise {
+  id: string;
+  title: string;
+  description: string;
+  duration: number; // minutes
+  category: ExerciseCategory;
+  level: ExerciseLevel;
+  instructions: string[];
+}
+
+export const CATEGORY_ORDER: ExerciseCategory[] = ['breathing', 'mindfulness', 'cognitive'];
+
+export const CATEGORY_LABELS: Record<ExerciseCategory, string> = {
+  breathing: 'Respiration',
+  mindfulness: 'Pleine conscience',
+  cognitive: 'Restructuration cognitive',
+};
+
+export const EXERCISES: Exercise[] = [
+  // ─── Respiration ──────────────────────────────────────────────────────────
+  {
+    id: 'coherence-cardiaque',
+    title: 'Cohérence cardiaque',
+    description: 'Régulez votre rythme cardiaque et apaisez votre système nerveux avec une respiration lente et régulière.',
+    duration: 5,
+    category: 'breathing',
+    level: 'débutant',
+    instructions: [
+      "Installez-vous confortablement, le dos droit, dans un endroit calme.",
+      "Posez une main sur votre ventre pour sentir votre respiration.",
+      "Inspirez doucement par le nez pendant 5 secondes.",
+      "Expirez lentement par la bouche pendant 5 secondes.",
+      "Répétez ce cycle à un rythme régulier de 6 cycles par minute.",
+      "Continuez pendant toute la durée de l'exercice.",
+      "Terminez en observant les sensations dans votre corps.",
+    ],
+  },
+  {
+    id: 'respiration-4-7-8',
+    title: 'Respiration 4-7-8',
+    description: "Une technique de relaxation rapide pour calmer l'anxiété et favoriser l'endormissement.",
+    duration: 3,
+    category: 'breathing',
+    level: 'intermédiaire',
+    instructions: [
+      "Asseyez-vous ou allongez-vous confortablement.",
+      "Placez le bout de la langue contre le palais, derrière les dents du haut.",
+      "Expirez complètement par la bouche en faisant un son de souffle.",
+      "Fermez la bouche et inspirez par le nez en comptant jusqu'à 4.",
+      "Retenez votre respiration en comptant jusqu'à 7.",
+      "Expirez complètement par la bouche en comptant jusqu'à 8.",
+      "Répétez ce cycle 4 fois.",
+    ],
+  },
+  {
+    id: 'respiration-carree',
+    title: 'Respiration carrée',
+    description: 'Technique utilisée pour gérer le stress et retrouver sa concentration grâce à un rythme à quatre temps égaux.',
+    duration: 4,
+    category: 'breathing',
+    level: 'intermédiaire',
+    instructions: [
+      "Installez-vous confortablement, le dos droit.",
+      "Expirez complètement pour vider vos poumons.",
+      "Inspirez par le nez en comptant lentement jusqu'à 4.",
+      "Retenez votre respiration en comptant jusqu'à 4.",
+      "Expirez par la bouche en comptant jusqu'à 4.",
+      "Retenez les poumons vides en comptant jusqu'à 4.",
+      "Répétez ce cycle pendant toute la durée de l'exercice.",
+    ],
+  },
+  {
+    id: 'respiration-abdominale',
+    title: 'Respiration abdominale',
+    description: 'Apprenez à respirer par le ventre pour réduire le stress et améliorer votre oxygénation.',
+    duration: 5,
+    category: 'breathing',
+    level: 'débutant',
+    instructions: [
+      "Allongez-vous sur le dos ou asseyez-vous confortablement.",
+      "Posez une main sur votre poitrine et l'autre sur votre ventre.",
+      "Inspirez lentement par le nez en gonflant le ventre, sans bouger la poitrine.",
+      "Expirez lentement par la bouche en rentrant le ventre.",
+      "Continuez ce cycle à votre propre rythme.",
+      "Concentrez-vous sur le mouvement de votre ventre à chaque respiration.",
+    ],
+  },
+  {
+    id: 'respiration-alternee',
+    title: 'Technique du souffle alterné',
+    description: 'Technique de yoga ancestrale pour équilibrer le système nerveux et clarifier l\'esprit.',
+    duration: 5,
+    category: 'breathing',
+    level: 'avancé',
+    instructions: [
+      "Asseyez-vous confortablement, le dos droit.",
+      "Avec la main droite, repliez l'index et le majeur vers la paume.",
+      "Fermez la narine droite avec le pouce et inspirez lentement par la narine gauche.",
+      "Fermez la narine gauche avec l'annulaire, relâchez le pouce et expirez par la narine droite.",
+      "Inspirez par la narine droite, puis fermez-la et expirez par la narine gauche.",
+      "Continuez à alterner ainsi à votre rythme.",
+      "Terminez par une expiration sur la narine gauche et revenez à une respiration normale.",
+    ],
+  },
+
+  // ─── Pleine conscience ────────────────────────────────────────────────────
+  {
+    id: 'body-scan',
+    title: 'Body scan rapide',
+    description: 'Un balayage corporel pour relâcher les tensions et reconnecter avec vos sensations physiques.',
+    duration: 5,
+    category: 'mindfulness',
+    level: 'débutant',
+    instructions: [
+      "Allongez-vous ou asseyez-vous confortablement, fermez les yeux.",
+      "Prenez trois respirations profondes pour vous installer.",
+      "Portez votre attention sur vos pieds et remarquez les sensations présentes.",
+      "Remontez progressivement vers les jambes, le bassin, le ventre et le dos.",
+      "Continuez vers la poitrine, les épaules, les bras et les mains.",
+      "Terminez par le cou, le visage et le sommet du crâne.",
+      "Ouvrez les yeux doucement et observez comment vous vous sentez.",
+    ],
+  },
+  {
+    id: 'observation-pensees',
+    title: 'Observation des pensées',
+    description: 'Apprenez à prendre du recul sur vos pensées sans vous laisser emporter par elles.',
+    duration: 10,
+    category: 'mindfulness',
+    level: 'intermédiaire',
+    instructions: [
+      "Installez-vous dans un endroit calme, assis confortablement.",
+      "Fermez les yeux et prenez quelques respirations profondes pour vous centrer.",
+      "Laissez venir les pensées sans chercher à les retenir ni à les chasser.",
+      "Imaginez que chaque pensée est un nuage qui passe dans le ciel.",
+      "Lorsque vous remarquez que vous êtes happé par une pensée, reconnaissez-le doucement.",
+      "Revenez à l'observation, sans jugement, comme un témoin neutre.",
+      "À la fin, revenez doucement à votre environnement.",
+    ],
+  },
+  {
+    id: 'ancrage-5-4-3-2-1',
+    title: 'Ancrage 5-4-3-2-1',
+    description: "Une technique de mise à la terre pour calmer rapidement l'anxiété en mobilisant vos cinq sens.",
+    duration: 3,
+    category: 'mindfulness',
+    level: 'débutant',
+    instructions: [
+      "Arrêtez-vous et prenez une grande respiration.",
+      "Identifiez 5 choses que vous pouvez voir autour de vous.",
+      "Identifiez 4 choses que vous pouvez entendre.",
+      "Identifiez 3 choses que vous pouvez toucher ou sentir au contact de votre corps.",
+      "Identifiez 2 choses que vous pouvez sentir (odorat).",
+      "Identifiez 1 chose que vous pouvez goûter.",
+      "Prenez une dernière respiration et observez comment vous vous sentez.",
+    ],
+  },
+  {
+    id: 'pause-mindful',
+    title: 'Pause mindful',
+    description: 'Une micro-pause pour se recentrer en pleine journée, sans matériel ni préparation.',
+    duration: 2,
+    category: 'mindfulness',
+    level: 'débutant',
+    instructions: [
+      "Arrêtez ce que vous faites et posez les mains sur vos genoux ou votre bureau.",
+      "Fermez les yeux ou baissez le regard.",
+      "Prenez 3 respirations lentes et profondes.",
+      "Remarquez les sensations dans votre corps : tensions, posture, contact avec le siège.",
+      "Posez-vous la question : « De quoi ai-je besoin maintenant ? »",
+      "Reprenez votre activité en gardant cette intention en tête.",
+    ],
+  },
+  {
+    id: 'marche-consciente',
+    title: 'Marche consciente',
+    description: 'Transformez une marche ordinaire en moment de pleine conscience et de reconnexion au corps.',
+    duration: 10,
+    category: 'mindfulness',
+    level: 'intermédiaire',
+    instructions: [
+      "Choisissez un trajet calme, à l'intérieur ou à l'extérieur.",
+      "Commencez à marcher à un rythme légèrement plus lent que d'habitude.",
+      "Portez attention aux sensations sous vos pieds à chaque pas.",
+      "Observez le mouvement de votre corps : jambes, bras, respiration.",
+      "Élargissez votre attention à votre environnement : sons, lumières, odeurs.",
+      "Si votre esprit s'évade, ramenez doucement l'attention à la marche.",
+      "Terminez en vous arrêtant quelques secondes pour ressentir votre corps immobile.",
+    ],
+  },
+
+  // ─── Restructuration cognitive ────────────────────────────────────────────
+  {
+    id: 'journal-pensees-automatiques',
+    title: 'Journal des pensées automatiques',
+    description: 'Identifiez et examinez les pensées négatives automatiques qui alimentent le stress.',
+    duration: 10,
+    category: 'cognitive',
+    level: 'intermédiaire',
+    instructions: [
+      "Notez une situation récente qui vous a généré une émotion négative forte.",
+      "Décrivez l'émotion ressentie et son intensité, de 0 à 10.",
+      "Notez la pensée automatique qui a accompagné cette émotion.",
+      "Identifiez les faits qui soutiennent cette pensée.",
+      "Identifiez les faits qui la contredisent.",
+      "Formulez une pensée alternative plus équilibrée.",
+      "Réévaluez l'intensité de l'émotion après cet exercice.",
+    ],
+  },
+  {
+    id: 'technique-recadrage',
+    title: 'Technique du recadrage',
+    description: 'Apprenez à reformuler une situation difficile sous un angle plus constructif.',
+    duration: 5,
+    category: 'cognitive',
+    level: 'intermédiaire',
+    instructions: [
+      "Pensez à une situation actuelle qui vous pèse.",
+      "Décrivez-la telle que vous la percevez actuellement, sans filtre.",
+      "Demandez-vous : « Quelle autre interprétation est possible ? »",
+      "Demandez-vous : « Qu'est-ce qu'un ami bienveillant me dirait sur cette situation ? »",
+      "Identifiez un aspect, même minime, que vous pourriez en tirer de positif.",
+      "Reformulez la situation avec cette nouvelle perspective.",
+      "Notez comment cette nouvelle vision change votre ressenti.",
+    ],
+  },
+  {
+    id: 'liste-gratitude',
+    title: 'Liste de gratitude',
+    description: 'Un exercice simple pour réorienter votre attention vers le positif et cultiver le bien-être.',
+    duration: 5,
+    category: 'cognitive',
+    level: 'débutant',
+    instructions: [
+      "Installez-vous avec un support pour écrire, papier ou téléphone.",
+      "Prenez un instant pour respirer et vous recentrer.",
+      "Notez 3 choses pour lesquelles vous êtes reconnaissant aujourd'hui.",
+      "Pour chacune, précisez pourquoi elle compte pour vous.",
+      "Notez une personne que vous appréciez et pourquoi.",
+      "Relisez votre liste lentement, en savourant chaque élément.",
+      "Essayez de répéter cet exercice chaque jour à la même heure.",
+    ],
+  },
+  {
+    id: 'distorsions-cognitives',
+    title: 'Identification des distorsions cognitives',
+    description: "Repérez les schémas de pensée déformés qui amplifient le stress et l'épuisement.",
+    duration: 15,
+    category: 'cognitive',
+    level: 'avancé',
+    instructions: [
+      "Pensez à une pensée négative récurrente que vous avez eue récemment.",
+      "Passez en revue les distorsions courantes : pensée tout-ou-rien, généralisation excessive, catastrophisme, lecture de pensée, dévalorisation du positif.",
+      "Identifiez laquelle, ou lesquelles, correspond à votre pensée.",
+      "Demandez-vous quelles preuves objectives soutiennent ou contredisent cette pensée.",
+      "Reformulez la pensée de façon plus nuancée et réaliste.",
+      "Notez cette nouvelle pensée et relisez-la à voix haute.",
+      "Répétez cet exercice avec d'autres pensées récurrentes au fil de la semaine.",
+    ],
+  },
+  {
+    id: 'lettre-bienveillante',
+    title: 'Lettre à soi-même bienveillante',
+    description: 'Cultivez l\'auto-compassion en vous écrivant comme vous écririez à un ami proche.',
+    duration: 15,
+    category: 'cognitive',
+    level: 'avancé',
+    instructions: [
+      "Installez-vous dans un endroit calme avec de quoi écrire.",
+      "Pensez à une difficulté ou un échec récent qui vous pèse.",
+      "Imaginez qu'un ami cher vous confie vivre exactement la même situation.",
+      "Écrivez-lui une lettre pleine de compréhension, sans jugement.",
+      "Reconnaissez ses efforts, ses émotions légitimes et son humanité.",
+      "Relisez la lettre en remplaçant son nom par le vôtre.",
+      "Prenez un moment pour ressentir cette bienveillance dirigée vers vous-même.",
+    ],
+  },
+];

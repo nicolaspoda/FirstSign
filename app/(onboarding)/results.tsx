@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,6 +21,7 @@ import { Colors } from '@/constants/colors';
 import { supabase } from '@/lib/supabase';
 import { generateActionPlan } from '@/lib/api';
 import { scheduleWeeklyCheckinReminder } from '@/lib/notifications';
+import { clearBurnoutCache } from '@/hooks/useBurnoutData';
 import type { Assessment, RiskLevel } from '@/types/database';
 import PaywallModal from '@/components/PaywallModal';
 
@@ -91,10 +93,89 @@ const gaugeStyles = StyleSheet.create({
   fill: { height: '100%', borderRadius: 5 },
 });
 
+const STABLE_THRESHOLD = 3;
+
+type EvolutionDirection = 'up' | 'down' | 'stable';
+
+function getEvolutionDirection(current: number, previous: number, higherIsBetter: boolean): EvolutionDirection {
+  const diff = current - previous;
+  if (Math.abs(diff) < STABLE_THRESHOLD) return 'stable';
+  const improved = higherIsBetter ? diff > 0 : diff < 0;
+  return improved ? 'up' : 'down';
+}
+
+const EVOLUTION_MESSAGES: Record<EvolutionDirection, string> = {
+  up: 'Vous progressez, continuez comme ça !',
+  down: "C'est une période difficile, le plan d'action peut vous aider.",
+  stable: 'Votre situation est stable.',
+};
+
+interface ComparisonRowProps {
+  label: string;
+  current: number;
+  previous: number;
+  higherIsBetter?: boolean;
+  bold?: boolean;
+}
+
+function ComparisonRow({ label, current, previous, higherIsBetter = false, bold = false }: ComparisonRowProps) {
+  const direction = getEvolutionDirection(current, previous, higherIsBetter);
+  const diff = Math.abs(current - previous);
+  const color = direction === 'up' ? Colors.success : direction === 'down' ? Colors.danger : Colors.textMuted;
+
+  return (
+    <View style={comparisonStyles.row}>
+      <Text style={[comparisonStyles.label, bold && comparisonStyles.labelBold]}>{label}</Text>
+      {direction === 'stable' ? (
+        <Text style={comparisonStyles.stable}>—</Text>
+      ) : (
+        <View style={comparisonStyles.change}>
+          <Ionicons name={direction === 'up' ? 'arrow-up' : 'arrow-down'} size={16} color={color} />
+          <Text style={[comparisonStyles.changeText, { color }]}>{diff} pts</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const comparisonStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  label: { fontSize: 14, color: Colors.text, fontWeight: '500' },
+  labelBold: { fontWeight: '700' },
+  stable: { fontSize: 16, color: Colors.textMuted, fontWeight: '700' },
+  change: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  changeText: { fontSize: 14, fontWeight: '700' },
+});
+
+function BackHeader() {
+  const router = useRouter();
+  if (!router.canGoBack()) return null;
+
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity
+        onPress={() => router.back()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={styles.backButton}
+      >
+        <Ionicons name="chevron-back" size={24} color={Colors.text} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function ResultsScreen() {
   const router = useRouter();
   const { assessmentId } = useLocalSearchParams<{ assessmentId: string }>();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [previousAssessment, setPreviousAssessment] = useState<Assessment | null>(null);
   const [loadingAssessment, setLoadingAssessment] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,20 +191,46 @@ export default function ResultsScreen() {
       return;
     }
 
-    supabase
-      .from('assessments')
-      .select('*')
-      .eq('id', assessmentId)
-      .single()
-      .then(({ data, error: fetchError }) => {
-        if (!fetchError && data) {
-          setAssessment(data as Assessment);
-          scheduleWeeklyCheckinReminder();
-        } else {
-          setError('Impossible de charger les résultats.');
-        }
+    let cancelled = false;
+
+    async function load() {
+      const { data, error: fetchError } = await supabase
+        .from('assessments')
+        .select('*')
+        .eq('id', assessmentId)
+        .single();
+
+      if (cancelled) return;
+
+      if (fetchError || !data) {
+        setError('Impossible de charger les résultats.');
         setLoadingAssessment(false);
-      });
+        return;
+      }
+
+      setAssessment(data as Assessment);
+      scheduleWeeklyCheckinReminder();
+      clearBurnoutCache(data.user_id);
+
+      const { data: previousData } = await supabase
+        .from('assessments')
+        .select('*')
+        .eq('user_id', data.user_id)
+        .lt('created_at', data.created_at)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      setPreviousAssessment((previousData as Assessment | null) ?? null);
+      setLoadingAssessment(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [assessmentId]);
 
   useEffect(() => {
@@ -138,13 +245,22 @@ export default function ResultsScreen() {
   const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
   const scoreBarStyle = useAnimatedStyle(() => ({ width: `${scoreBarWidth.value}%` as any }));
 
-  async function handleGeneratePlan() {
+  async function handleCreatePlan() {
     if (!assessmentId) return;
     setError(null);
     setLoadingPlan(true);
     try {
-      await generateActionPlan(assessmentId);
-      router.replace('/(tabs)/plan');
+      const { data: existingPlan } = await supabase
+        .from('action_plans')
+        .select('id')
+        .eq('assessment_id', assessmentId)
+        .maybeSingle();
+
+      if (!existingPlan) {
+        await generateActionPlan(assessmentId);
+      }
+
+      router.replace({ pathname: '/(onboarding)/plan-preview', params: { assessmentId } });
     } catch (err: any) {
       if (err?.status === 403 || err?.message?.includes('premium')) {
         setShowPaywall(true);
@@ -156,9 +272,14 @@ export default function ResultsScreen() {
     }
   }
 
+  function handleBackToDashboard() {
+    router.replace('/(tabs)');
+  }
+
   if (loadingAssessment) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <BackHeader />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Analyse de vos résultats...</Text>
@@ -170,6 +291,7 @@ export default function ResultsScreen() {
   if (!assessment) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        <BackHeader />
         <View style={styles.centerContainer}>
           <Text style={styles.errorTextLarge}>{error ?? 'Impossible de charger les résultats.'}</Text>
         </View>
@@ -181,6 +303,7 @@ export default function ResultsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <BackHeader />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.content, contentStyle]}>
           <View style={styles.pageHeader}>
@@ -252,24 +375,70 @@ export default function ResultsScreen() {
             ))}
           </View>
 
+          {previousAssessment ? (
+            <View style={styles.evolutionCard}>
+              <Text style={styles.sectionTitle}>Votre évolution depuis le dernier diagnostic</Text>
+
+              <ComparisonRow
+                label="Épuisement émotionnel"
+                current={assessment.exhaustion_score}
+                previous={previousAssessment.exhaustion_score}
+              />
+              <ComparisonRow
+                label="Cynisme"
+                current={assessment.cynicism_score}
+                previous={previousAssessment.cynicism_score}
+              />
+              <ComparisonRow
+                label="Efficacité personnelle"
+                current={assessment.efficacy_score}
+                previous={previousAssessment.efficacy_score}
+                higherIsBetter
+              />
+
+              <View style={styles.evolutionDivider} />
+
+              <ComparisonRow
+                label="Score global"
+                current={assessment.total_score}
+                previous={previousAssessment.total_score}
+                bold
+              />
+
+              <Text style={styles.evolutionMessage}>
+                {EVOLUTION_MESSAGES[getEvolutionDirection(assessment.total_score, previousAssessment.total_score, false)]}
+              </Text>
+            </View>
+          ) : null}
+
           {error ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <TouchableOpacity
-            style={[styles.ctaButton, loadingPlan && styles.ctaButtonDisabled]}
-            onPress={handleGeneratePlan}
-            disabled={loadingPlan}
-            activeOpacity={0.85}
-          >
-            {loadingPlan ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.ctaButtonText}>Voir mon plan d'action</Text>
-            )}
-          </TouchableOpacity>
+          {previousAssessment ? (
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={handleBackToDashboard}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.ctaButtonText}>Retour au dashboard →</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.ctaButton, loadingPlan && styles.ctaButtonDisabled]}
+              onPress={handleCreatePlan}
+              disabled={loadingPlan}
+              activeOpacity={0.85}
+            >
+              {loadingPlan ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.ctaButtonText}>Créer mon plan d'action →</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </ScrollView>
 
@@ -278,7 +447,7 @@ export default function ResultsScreen() {
         onClose={() => setShowPaywall(false)}
         onSuccess={() => {
           setShowPaywall(false);
-          handleGeneratePlan();
+          handleCreatePlan();
         }}
       />
     </SafeAreaView>
@@ -296,6 +465,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
     paddingHorizontal: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
   },
   loadingText: {
     fontSize: 16,
@@ -410,6 +592,29 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontStyle: 'italic',
     lineHeight: 16,
+  },
+  evolutionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  evolutionDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
+  evolutionMessage: {
+    marginTop: 16,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 21,
+    textAlign: 'center',
   },
   detailsRow: {
     flexDirection: 'row',

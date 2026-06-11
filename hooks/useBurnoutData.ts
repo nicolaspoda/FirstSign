@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,6 +75,17 @@ async function writeCache(key: string, payload: CachePayload): Promise<void> {
   }
 }
 
+// Drop the cached snapshot for a user so the next mount of useBurnoutData
+// fetches fresh data instead of briefly showing stale state (e.g. right
+// after a new assessment was saved from the onboarding flow).
+export async function clearBurnoutCache(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(`${CACHE_PREFIX}${userId}`);
+  } catch {
+    // Non-fatal — app works without cache
+  }
+}
+
 export function useBurnoutData(): BurnoutData {
   const { user } = useAuth();
 
@@ -143,15 +154,10 @@ export function useBurnoutData(): BurnoutData {
   }, [user?.id, cacheKey, applyPayload]);
 
   // Re-sync from Supabase whenever the screen regains focus (e.g. coming back
-  // from dev-tools after simulating data), skipping the very first focus since
-  // the effect above already handles the initial load.
-  const isInitialFocus = useRef(true);
+  // from the onboarding flow after a new assessment, or from dev-tools after
+  // simulating data).
   useFocusEffect(
     useCallback(() => {
-      if (isInitialFocus.current) {
-        isInitialFocus.current = false;
-        return;
-      }
       refresh();
     }, [refresh])
   );

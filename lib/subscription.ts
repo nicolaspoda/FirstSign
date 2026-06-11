@@ -9,11 +9,12 @@ export type Feature =
   | 'ai_3messages'
   | 'checkin_history'
   | 'ai_unlimited'
-  | 'action_plan';
+  | 'action_plan'
+  | 'exercises';
 
 const FEATURES_BY_TIER: Record<SubscriptionTier, Feature[]> = {
   free:    ['assessment', 'checkin_2weeks', 'ai_3messages'],
-  premium: ['assessment', 'checkin_2weeks', 'ai_3messages', 'checkin_history', 'ai_unlimited', 'action_plan'],
+  premium: ['assessment', 'checkin_2weeks', 'ai_3messages', 'checkin_history', 'ai_unlimited', 'action_plan', 'exercises'],
 };
 
 const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? '';

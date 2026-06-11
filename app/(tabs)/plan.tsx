@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { generateActionPlan } from '@/lib/api';
 import { canAccess } from '@/lib/subscription';
+import { computePlanProgress, type PlanProgress } from '@/lib/planProgress';
 import type { ActionPlan, Action } from '@/types/database';
 import PaywallModal from '@/components/PaywallModal';
 
@@ -28,14 +29,6 @@ const CATEGORY_ICONS: Record<string, IoniconsName> = {
   movement: 'walk-outline',
   social: 'people-outline',
 };
-
-function getCurrentWeek(createdAt: string): number {
-  const start = new Date(createdAt);
-  const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-  const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
-  return Math.min(Math.max(1, diffWeeks + 1), 8);
-}
 
 interface ActionItemProps {
   action: Action;
@@ -67,10 +60,108 @@ function ActionItem({ action, completed, onToggle }: ActionItemProps) {
   );
 }
 
+interface ProgressOverviewCardProps {
+  progress: PlanProgress;
+  onRestartDiagnostic: () => void;
+}
+
+function ProgressOverviewCard({ progress, onRestartDiagnostic }: ProgressOverviewCardProps) {
+  const {
+    totalActions,
+    completedActions,
+    completionRate,
+    currentWeek,
+    weeksRemaining,
+    isComplete,
+    currentStreak,
+    bestStreak,
+    currentWeekCompleted,
+    currentWeekTotal,
+  } = progress;
+
+  return (
+    <>
+      <View style={styles.overviewCard}>
+        <View style={styles.overviewHeader}>
+          <Text style={styles.overviewTitle}>Progression du programme</Text>
+          <Text style={styles.overviewPercent}>{completionRate}%</Text>
+        </View>
+
+        <View style={styles.overviewTrack}>
+          <View style={[styles.overviewFill, { width: `${completionRate}%` as any }]} />
+        </View>
+        <Text style={styles.overviewCount}>
+          {completedActions}/{totalActions} actions complétées
+        </Text>
+
+        <View style={styles.overviewMetaRow}>
+          <View style={styles.overviewMetaItem}>
+            <Ionicons name="calendar-outline" size={15} color={Colors.primary} />
+            <Text style={styles.overviewMetaText}>Semaine {currentWeek} en cours</Text>
+          </View>
+          {currentStreak > 0 && (
+            <View style={styles.overviewMetaItem}>
+              <Ionicons name="flame-outline" size={15} color={Colors.warning} />
+              <Text style={styles.overviewMetaText}>
+                {currentStreak} semaine{currentStreak > 1 ? 's' : ''} consécutive{currentStreak > 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {isComplete ? (
+          <View style={styles.completionBadge}>
+            <Ionicons name="trophy-outline" size={20} color={Colors.primary} />
+            <View style={styles.completionTextContainer}>
+              <Text style={styles.completionTitle}>Programme terminé</Text>
+              <Text style={styles.completionSubtitle}>Voulez-vous refaire un diagnostic ?</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.completionButton}
+              onPress={onRestartDiagnostic}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.completionButtonText}>Refaire</Text>
+            </TouchableOpacity>
+          </View>
+        ) : weeksRemaining > 0 ? (
+          <Text style={styles.overviewRemaining}>
+            {weeksRemaining} semaine{weeksRemaining > 1 ? 's' : ''} restante{weeksRemaining > 1 ? 's' : ''}
+          </Text>
+        ) : (
+          <Text style={styles.overviewRemaining}>Dernière semaine du programme</Text>
+        )}
+      </View>
+
+      <View style={styles.statsRow}>
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>
+            {currentWeekCompleted}/{currentWeekTotal}
+          </Text>
+          <Text style={styles.statLabel}>Cette semaine</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>{completionRate}%</Text>
+          <Text style={styles.statLabel}>Taux global</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statTile}>
+          <Text style={styles.statValue}>
+            {bestStreak} semaine{bestStreak > 1 ? 's' : ''}
+          </Text>
+          <Text style={styles.statLabel}>Meilleure streak</Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
 export default function PlanScreen() {
   const router = useRouter();
+  const { activated } = useLocalSearchParams<{ activated?: string }>();
   const { user } = useAuth();
-  const { latestAssessment } = useBurnoutData();
+  const { latestAssessment, recentCheckins } = useBurnoutData();
 
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +174,12 @@ export default function PlanScreen() {
   useEffect(() => {
     canAccess('action_plan').then(setIsPremium);
   }, []);
+
+  useEffect(() => {
+    if (activated === '1') {
+      setInlineMsg({ text: 'Programme de 8 semaines activé !', ok: true });
+    }
+  }, [activated]);
 
   useEffect(() => {
     if (!user) return;
@@ -222,11 +319,11 @@ export default function PlanScreen() {
     );
   }
 
-  const currentWeek = getCurrentWeek(plan.created_at);
+  const progress = computePlanProgress(plan, completedIds, recentCheckins);
+  const currentWeek = progress.currentWeek;
   const weekActions = (plan.actions ?? [])
     .filter((a) => a.week === currentWeek)
     .slice(0, 3);
-  const completedCount = weekActions.filter((a) => completedIds.has(a.id)).length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -238,27 +335,11 @@ export default function PlanScreen() {
           </View>
         </View>
 
-        {/* Progression globale */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>Progression</Text>
-            <Text style={styles.progressValue}>
-              {completedCount}/{weekActions.length} cette semaine
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: weekActions.length > 0
-                    ? `${(completedCount / weekActions.length) * 100}%` as any
-                    : '0%',
-                },
-              ]}
-            />
-          </View>
-        </View>
+        {/* Progression du programme */}
+        <ProgressOverviewCard
+          progress={progress}
+          onRestartDiagnostic={() => router.push('/(onboarding)/welcome')}
+        />
 
         {/* Actions de la semaine */}
         <View style={styles.weekCard}>
@@ -311,7 +392,7 @@ export default function PlanScreen() {
             if (!isPremium) {
               setShowPaywall(true);
             } else {
-              setInlineMsg({ text: 'La bibliothèque d\'exercices arrive prochainement.', ok: true });
+              router.push('/exercises');
             }
           }}
           activeOpacity={0.8}
@@ -418,10 +499,109 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primary,
   },
-  progressCard: {
+  overviewCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  overviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  overviewTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  overviewPercent: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  overviewTrack: {
+    height: 10,
+    backgroundColor: Colors.border,
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  overviewFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 5,
+  },
+  overviewCount: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 14,
+  },
+  overviewMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 12,
+  },
+  overviewMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  overviewMetaText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  overviewRemaining: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  completionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.primaryMuted,
+  },
+  completionTextContainer: {
+    flex: 1,
+  },
+  completionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  completionSubtitle: {
+    fontSize: 12,
+    color: Colors.primary,
+    marginTop: 2,
+  },
+  completionButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  completionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  statsRow: {
+    flexDirection: 'row',
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 14,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -429,31 +609,25 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+  statTile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
   },
-  progressLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  statDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '800',
     color: Colors.text,
   },
-  progressValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: Colors.border,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 4,
+  statLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textAlign: 'center',
   },
   weekCard: {
     backgroundColor: Colors.primaryLight,

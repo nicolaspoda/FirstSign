@@ -78,7 +78,12 @@ export default function AssessmentScreen() {
   }
 
   function handlePrevious() {
-    if (currentIndex === 0) return;
+    if (currentIndex === 0) {
+      if (router.canGoBack()) {
+        router.back();
+      }
+      return;
+    }
     navigateToQuestion(currentIndex - 1, 'back');
   }
 
@@ -122,16 +127,18 @@ export default function AssessmentScreen() {
       ? styles.dimensionCynicism
       : styles.dimensionEfficacy;
 
+  const backDisabled = currentIndex === 0 && !router.canGoBack();
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={handlePrevious}
-          disabled={currentIndex === 0}
-          style={[styles.backButton, currentIndex === 0 && styles.backButtonDisabled]}
+          disabled={backDisabled}
+          style={[styles.backButton, backDisabled && styles.backButtonDisabled]}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={[styles.backArrow, currentIndex === 0 && styles.backArrowDisabled]}>←</Text>
+          <Text style={[styles.backArrow, backDisabled && styles.backArrowDisabled]}>←</Text>
         </TouchableOpacity>
 
         <Text style={styles.progressLabel}>

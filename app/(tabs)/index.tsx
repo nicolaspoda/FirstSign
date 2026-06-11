@@ -170,6 +170,27 @@ export default function DashboardScreen() {
     );
   }
 
+  if (!latestAssessment) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.welcomeContainer}>
+          <Ionicons name="leaf-outline" size={64} color={Colors.primary} style={styles.welcomeIcon} />
+          <Text style={styles.welcomeTitle}>Bienvenue sur BurnoutApp</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Commencez par évaluer votre niveau de burnout. Cela prend environ 5 minutes.
+          </Text>
+          <TouchableOpacity
+            style={styles.welcomeButton}
+            onPress={() => router.push('/(onboarding)/assessment')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.welcomeButtonText}>Faire mon premier diagnostic</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {alert && (
@@ -223,6 +244,25 @@ export default function DashboardScreen() {
                   ]}
                 />
               </View>
+              <TouchableOpacity
+                style={styles.detailLink}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(onboarding)/results',
+                    params: { assessmentId: latestAssessment.id },
+                  })
+                }
+                activeOpacity={0.7}
+              >
+                <Text style={styles.detailLinkText}>Voir le détail du diagnostic →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.retakeButton}
+                onPress={() => router.push('/(onboarding)/assessment')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.retakeButtonText}>Refaire le diagnostic</Text>
+              </TouchableOpacity>
             </>
           ) : (
             <View style={styles.noDataContainer}>
@@ -319,6 +359,42 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  welcomeContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  welcomeIcon: {
+    marginBottom: 24,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  welcomeSubtitle: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  welcomeButton: {
+    backgroundColor: '#1D9E75',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
+  },
+  welcomeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   alertBanner: {
     backgroundColor: Colors.danger,
@@ -431,6 +507,28 @@ const styles = StyleSheet.create({
   scoreBarFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  detailLink: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  detailLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
+  },
+  retakeButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  retakeButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   noDataContainer: {
     alignItems: 'center',

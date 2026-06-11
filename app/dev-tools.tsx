@@ -175,16 +175,15 @@ export default function DevToolsScreen() {
   }
 
   async function deleteTestData(userId: string) {
-    const [a, b, c, d] = await Promise.all([
-      supabase.from('checkins').delete().eq('user_id', userId),
-      supabase.from('assessments').delete().eq('user_id', userId),
-      supabase.from('ai_conversations').delete().eq('user_id', userId),
-      supabase.from('action_plans').delete().eq('user_id', userId),
-    ]);
-    if (a.error) throw a.error;
-    if (b.error) throw b.error;
-    if (c.error) throw c.error;
-    if (d.error) throw d.error;
+    // Sequential, not Promise.all: firing several concurrent HTTPS requests
+    // to the same host from a physical device over Wi-Fi can trip "Network
+    // request failed" on Expo Go. One request at a time is reliable, and the
+    // table name in the error makes a real failure easy to pinpoint.
+    const tables = ['checkins', 'assessments', 'ai_conversations', 'action_plans'] as const;
+    for (const table of tables) {
+      const { error } = await supabase.from(table).delete().eq('user_id', userId);
+      if (error) throw new Error(`${table}: ${error.message}`);
+    }
   }
 
   async function resetAll(userId: string) {
