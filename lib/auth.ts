@@ -48,3 +48,17 @@ export async function getCurrentUser() {
 export async function resetPassword(email: string) {
   return supabase.auth.resetPasswordForEmail(email);
 }
+
+export async function deleteAccount(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('delete-account', {
+    body: {},
+  });
+
+  if (error || data?.error) {
+    throw new Error(
+      data?.message ?? 'Une erreur est survenue lors de la suppression du compte. Veuillez réessayer.'
+    );
+  }
+
+  await supabase.auth.signOut();
+}

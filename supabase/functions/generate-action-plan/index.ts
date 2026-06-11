@@ -219,6 +219,172 @@ const PLAN_TEMPLATES: Record<string, ActionTemplate[][]> = {
   ],
 };
 
+const REMOTE_WORK_LABELS: Record<string, string> = {
+  yes: 'Full remote',
+  no: 'En présentiel',
+  hybrid: 'Hybride',
+};
+
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+const SYSTEM_PROMPT =
+  "Tu es un expert en prévention du burnout professionnel. Tu génères des plans d'action personnalisés basés sur les données scientifiques CBI.\n\nRéponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, sans texte avant ou après le JSON.";
+
+const PLAN_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    weeks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          week: { type: 'integer' },
+          theme: { type: 'string' },
+          actions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                description: { type: 'string' },
+                duration: { type: 'string' },
+                category: { type: 'string' },
+              },
+              required: ['title', 'description', 'duration', 'category'],
+            },
+          },
+        },
+        required: ['week', 'theme', 'actions'],
+      },
+    },
+  },
+  required: ['weeks'],
+};
+
+interface PlanAction extends ActionTemplate {
+  id: string;
+  week: number;
+}
+
+interface GeminiPlanResponse {
+  weeks: { week: number; theme: string; actions: ActionTemplate[] }[];
+}
+
+function buildUserPrompt(assessment: any, profile: any, checkinsSummary: string): string {
+  const sector = profile?.sector ?? 'non renseigné';
+  const remoteWork = profile?.remote_work
+    ? (REMOTE_WORK_LABELS[profile.remote_work] ?? profile.remote_work)
+    : 'non renseigné';
+  const isManager = profile?.is_manager ? 'oui' : 'non';
+  const stressSource = profile?.main_stress_source ?? 'non renseignée';
+
+  return `Génère un plan d'action de 8 semaines pour cet utilisateur.
+
+PROFIL CBI :
+- Épuisement personnel : ${assessment.exhaustion_score}/100
+- Épuisement professionnel : ${assessment.cynicism_score}/100
+- Épuisement relationnel : ${assessment.efficacy_score}/100
+- Niveau de risque global : ${assessment.risk_level}
+
+CONTEXTE :
+- Secteur : ${sector}
+- Télétravail : ${remoteWork}
+- Manager : ${isManager}
+- Source de stress principale : ${stressSource}
+
+TENDANCE RÉCENTE :
+${checkinsSummary}
+
+FORMAT DE RÉPONSE JSON attendu :
+{
+  "weeks": [
+    {
+      "week": 1,
+      "theme": "string (thème de la semaine)",
+      "actions": [
+        {
+          "title": "string (max 50 caractères)",
+          "description": "string (1-2 phrases concrètes)",
+          "duration": "string (ex: 5 min, 15 min)",
+          "category": "respiration|pleine_conscience|organisation|communication|physique"
+        }
+      ]
+    }
+  ]
+}
+
+Règles :
+- 3 actions par semaine, 8 semaines = 24 actions au total
+- Les actions doivent être progressives (semaine 1 simple, semaine 8 plus avancée)
+- Adapter selon le niveau de risque :
+  critical/high → actions de récupération immédiate en semaine 1-2
+  medium/low → actions de prévention et renforcement
+- Si manager : inclure des actions sur la délégation et la gestion d'équipe
+- Si full remote : inclure des actions sur la déconnexion et les rituels de fin de journée
+- Toutes les actions en français, concrètes et applicables au quotidien`;
+}
+
+// recentCheckins is ordered most-recent-first (index 0 = latest week)
+function summarizeCheckins(checkins: any[]): string {
+  if (!checkins || checkins.length === 0) {
+    return 'Aucun check-in disponible (utilisateur récemment diagnostiqué).';
+  }
+
+  const lines = checkins
+    .map((c) => `- Semaine ${c.week_number}/${c.year} : énergie ${c.energy}/10, motivation ${c.motivation}/10, stress ${c.stress}/10, équilibre ${c.work_life_balance}/10`)
+    .join('\n');
+
+  if (checkins.length < 2) return lines;
+
+  const calcTrend = (values: number[], lowerIsBetter = false): string => {
+    const diff = values[0] - values[values.length - 1];
+    if (Math.abs(diff) <= 0.5) return 'stable';
+    const increasing = diff > 0;
+    return lowerIsBetter
+      ? (increasing ? 'en hausse (dégradation)' : 'en baisse (amélioration)')
+      : (increasing ? 'en hausse' : 'en baisse');
+  };
+
+  const energyTrend = calcTrend(checkins.map((c) => c.energy ?? 0));
+  const stressTrend = calcTrend(checkins.map((c) => c.stress ?? 0), true);
+  const motivationTrend = calcTrend(checkins.map((c) => c.motivation ?? 0));
+
+  return `${lines}\n\nTendance énergie : ${energyTrend}\nTendance stress : ${stressTrend}\nTendance motivation : ${motivationTrend}`;
+}
+
+function isValidPlanResponse(parsed: any): parsed is GeminiPlanResponse {
+  return (
+    !!parsed &&
+    Array.isArray(parsed.weeks) &&
+    parsed.weeks.length === 8 &&
+    parsed.weeks.every((week: any) =>
+      week &&
+      Array.isArray(week.actions) &&
+      week.actions.length === 3 &&
+      week.actions.every((action: any) =>
+        typeof action?.title === 'string' && action.title.trim() !== '' &&
+        typeof action?.description === 'string' && action.description.trim() !== '' &&
+        typeof action?.duration === 'string' && action.duration.trim() !== '' &&
+        typeof action?.category === 'string' && action.category.trim() !== ''
+      )
+    )
+  );
+}
+
+// Generate 24 actions (3 per week × 8 weeks) with relative week numbers 1–8
+function actionsFromWeeks(weekActionsList: ActionTemplate[][], assessmentId: string): PlanAction[] {
+  return weekActionsList.flatMap((weekActions, weekIndex) =>
+    weekActions.map((template, actionIndex) => ({
+      id: `${assessmentId}-w${weekIndex + 1}-${actionIndex + 1}`,
+      title: template.title,
+      description: template.description,
+      duration: template.duration,
+      category: template.category,
+      week: weekIndex + 1,
+    }))
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -232,6 +398,23 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_tier, sector, remote_work, is_manager, main_stress_source')
+      .eq('user_id', user_id)
+      .single();
+    if (profileError) throw profileError;
+
+    if (profile?.subscription_tier !== 'premium') {
+      return new Response(
+        JSON.stringify({
+          error: 'PREMIUM_REQUIRED',
+          message: "La génération d'un plan d'action personnalisé est réservée aux comptes premium.",
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: assessment, error: assessmentError } = await supabase
       .from('assessments')
       .select('*')
@@ -240,16 +423,52 @@ Deno.serve(async (req) => {
 
     if (assessmentError) throw assessmentError;
 
-    const weekTemplates = PLAN_TEMPLATES[assessment.risk_level] ?? PLAN_TEMPLATES.medium;
+    const { data: recentCheckins } = await supabase
+      .from('checkins')
+      .select('week_number, year, energy, motivation, stress, work_life_balance')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+      .limit(4);
 
-    // Generate 24 actions (3 per week × 8 weeks) with relative week numbers 1–8
-    const actions = weekTemplates.flatMap((weekActions, weekIndex) =>
-      weekActions.map((template, actionIndex) => ({
-        id: `${assessment_id}-w${weekIndex + 1}-${actionIndex + 1}`,
-        ...template,
-        week: weekIndex + 1,
-      }))
-    );
+    let actions: PlanAction[];
+
+    try {
+      const userPrompt = buildUserPrompt(assessment, profile, summarizeCheckins(recentCheckins ?? []));
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${Deno.env.get('GEMINI_API_KEY')}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            generationConfig: {
+              thinkingConfig: { thinkingBudget: 0 },
+              maxOutputTokens: 4096,
+              responseMimeType: 'application/json',
+              responseSchema: PLAN_RESPONSE_SCHEMA,
+            },
+          }),
+        }
+      );
+
+      if (!geminiRes.ok) throw new Error(`Gemini API error: ${geminiRes.status}`);
+
+      const geminiData = await geminiRes.json();
+      const text: string =
+        geminiData.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
+
+      const parsed = JSON.parse(text);
+
+      if (!isValidPlanResponse(parsed)) throw new Error('Invalid plan structure from Gemini');
+
+      actions = actionsFromWeeks(parsed.weeks.map((w) => w.actions), assessment_id);
+    } catch (geminiError) {
+      console.error('generate-action-plan: Gemini generation failed, falling back to templates', geminiError);
+      const weekTemplates = PLAN_TEMPLATES[assessment.risk_level] ?? PLAN_TEMPLATES.medium;
+      actions = actionsFromWeeks(weekTemplates, assessment_id);
+    }
 
     const { data: plan, error: planError } = await supabase
       .from('action_plans')

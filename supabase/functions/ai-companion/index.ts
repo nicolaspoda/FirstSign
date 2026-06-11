@@ -15,6 +15,12 @@ const RISK_LABELS: Record<string, string> = {
   critical: 'critique',
 };
 
+const REMOTE_WORK_LABELS: Record<string, string> = {
+  yes: 'Full remote',
+  no: 'En présentiel',
+  hybrid: 'Hybride',
+};
+
 const FREE_MONTHLY_LIMIT = 3;
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -32,11 +38,12 @@ Deno.serve(async (req) => {
     );
 
     // Check subscription tier
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('subscription_tier')
+      .select('subscription_tier, sector, remote_work, is_manager, main_stress_source')
       .eq('user_id', user_id)
       .single();
+    if (profileError) throw profileError;
 
     const isPremium = profile?.subscription_tier === 'premium';
 
@@ -62,7 +69,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch user's latest assessment for personalized system prompt
+    // Fetch latest assessment and last 12 check-ins
     const { data: assessment } = await supabase
       .from('assessments')
       .select('exhaustion_score, cynicism_score, efficacy_score, risk_level')
@@ -71,9 +78,71 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const systemPrompt = assessment
-      ? `${BASE_SYSTEM_PROMPT}\n\nCONTEXTE UTILISATEUR : L'utilisateur a un score d'épuisement personnel de ${assessment.exhaustion_score}/100, un épuisement professionnel de ${assessment.cynicism_score}/100 et un épuisement relationnel de ${assessment.efficacy_score}/100 (questionnaire CBI). Son niveau de risque de burnout est ${RISK_LABELS[assessment.risk_level] ?? assessment.risk_level}. Adapte tes conseils à ce profil spécifique et fais référence à ces dimensions lorsque c'est pertinent.`
-      : BASE_SYSTEM_PROMPT;
+    const { data: recentCheckins } = await supabase
+      .from('checkins')
+      .select('week_number, year, energy, motivation, stress, work_life_balance, created_at')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+      .limit(12);
+
+    const assessmentContext = assessment
+      ? `\n\nCONTEXTE UTILISATEUR : L'utilisateur a un score d'épuisement personnel de ${assessment.exhaustion_score}/100, un épuisement professionnel de ${assessment.cynicism_score}/100 et un épuisement relationnel de ${assessment.efficacy_score}/100 (questionnaire CBI). Son niveau de risque de burnout est ${RISK_LABELS[assessment.risk_level] ?? assessment.risk_level}. Adapte tes conseils à ce profil spécifique et fais référence à ces dimensions lorsque c'est pertinent.`
+      : '';
+
+    const profileLines: string[] = [];
+    if (profile?.sector) profileLines.push(`- Secteur : ${profile.sector}`);
+    if (profile?.remote_work) profileLines.push(`- Télétravail : ${REMOTE_WORK_LABELS[profile.remote_work] ?? profile.remote_work}`);
+    if (profile?.is_manager !== null && profile?.is_manager !== undefined) {
+      profileLines.push(`- Manager : ${profile.is_manager ? 'Oui' : 'Non'}`);
+    }
+    if (profile?.main_stress_source) profileLines.push(`- Principale source de stress : ${profile.main_stress_source}`);
+
+    const userContextBlock = profileLines.length > 0
+      ? `\n\nCONTEXTE UTILISATEUR :\n${profileLines.join('\n')}\n\nUtilise ces informations pour personnaliser tes réponses (ex. mentionner le secteur, adapter les conseils au télétravail ou au rôle de manager, prioriser la source de stress principale).`
+      : '';
+
+    let checkinsBlock = '';
+
+    if (recentCheckins && recentCheckins.length > 0) {
+      const historyLines = recentCheckins
+        .map((c) => `Semaine ${c.week_number} (${c.year}) - Énergie: ${c.energy}/10, Motivation: ${c.motivation}/10, Stress: ${c.stress}/10, Équilibre: ${c.work_life_balance}/10`)
+        .join('\n');
+
+      const last4 = recentCheckins.slice(0, Math.min(4, recentCheckins.length));
+
+      // Trends are computed over the last 4 check-ins (index 0 = most recent)
+      const calcTrend = (values: number[], lowerIsBetter = false): string => {
+        if (values.length < 2) return 'insuffisant de données';
+        const diff = values[0] - values[values.length - 1];
+        if (Math.abs(diff) <= 0.5) return 'stable';
+        const increasing = diff > 0;
+        return lowerIsBetter
+          ? (increasing ? 'en hausse (dégradation)' : 'en baisse (amélioration)')
+          : (increasing ? 'en hausse' : 'en baisse');
+      };
+
+      const energyTrend = calcTrend(last4.map((c) => c.energy));
+      const stressTrend = calcTrend(last4.map((c) => c.stress), true);
+      const motivationTrend = calcTrend(last4.map((c) => c.motivation));
+
+      // wellbeing = (energy + motivation + (10 - stress) + work_life_balance) / 4
+      // recentCheckins is ordered desc, so index i+1 is the week before index i
+      const wellbeingScores = recentCheckins.map(
+        (c) => (c.energy + c.motivation + (10 - c.stress) + c.work_life_balance) / 4
+      );
+      let consecutiveDegradation = 0;
+      for (let i = 0; i < wellbeingScores.length - 1; i++) {
+        if (wellbeingScores[i] < wellbeingScores[i + 1]) {
+          consecutiveDegradation++;
+        } else {
+          break;
+        }
+      }
+
+      checkinsBlock = `\n\nHISTORIQUE DES 12 DERNIÈRES SEMAINES :\n${historyLines}\n\nANALYSE DES TENDANCES :\n- Tendance énergie : ${energyTrend}\n- Tendance stress : ${stressTrend}\n- Tendance motivation : ${motivationTrend}\n- Semaines consécutives en dégradation : ${consecutiveDegradation}\n\nUtilise ces données pour personnaliser tes réponses. Par exemple :\n- Si l'énergie baisse depuis 3+ semaines : mentionne-le proactivement\n- Si le stress augmente régulièrement : propose des actions concrètes\n- Si amélioration notable : encourage et renforce les comportements positifs`;
+    }
+
+    const systemPrompt = `${BASE_SYSTEM_PROMPT}${assessmentContext}${userContextBlock}${checkinsBlock}`;
 
     const contents = messages.map((m: { role: string; content: string }) => ({
       role: m.role === 'assistant' ? 'model' : 'user',

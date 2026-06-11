@@ -1,4 +1,5 @@
-import type { RiskLevel } from '@/types/database';
+import type { RiskLevel, Assessment, Checkin } from '@/types/database';
+import { detectTrend, wellbeingScore } from './checkin';
 
 export type CBIDimension = 'personal' | 'work' | 'relations';
 export type CBIScale = 'frequency' | 'intensity';
@@ -153,6 +154,108 @@ export function getRiskLevel(scores: BurnoutScores): RiskProfile {
         urgency: 'Maintenez vos bonnes pratiques de bien-être.',
       };
   }
+}
+
+export interface RiskData {
+  checkins: Checkin[];
+  latestAssessment: Assessment;
+  previousAssessment?: Assessment | null;
+  weeksWithoutCheckin: number;
+}
+
+export interface RiskScore {
+  score: number;
+  level: 'Faible' | 'Modéré' | 'Élevé' | 'Critique';
+  color: string;
+  mainFactors: string[];
+}
+
+export function calculateRiskScore(data: RiskData): RiskScore {
+  const { checkins, latestAssessment, previousAssessment, weeksWithoutCheckin } = data;
+
+  let score = latestAssessment.total_score;
+  const factors: Array<{ label: string; delta: number }> = [];
+
+  const last4 = checkins.slice(0, 4);
+
+  if (last4.length >= 4) {
+    const trend = detectTrend(last4);
+    if (trend === 'declining') {
+      score += 15;
+      factors.push({ label: 'Tendance à la dégradation sur 4 semaines', delta: 15 });
+    } else if (trend === 'improving') {
+      score -= 10;
+      factors.push({ label: 'Amélioration régulière sur 4 semaines', delta: -10 });
+    }
+  }
+
+  if (last4.length >= 2) {
+    const avgStress = last4.reduce((s, c) => s + (c.stress ?? 5), 0) / last4.length;
+    const avgEnergy = last4.reduce((s, c) => s + (c.energy ?? 5), 0) / last4.length;
+    const avgMotivation = last4.reduce((s, c) => s + (c.motivation ?? 5), 0) / last4.length;
+
+    if (avgStress > 7) {
+      score += 10;
+      factors.push({ label: `Stress élevé ces dernières semaines (${avgStress.toFixed(1)}/10)`, delta: 10 });
+    } else if (avgStress < 4) {
+      score -= 5;
+      factors.push({ label: 'Stress bien maîtrisé', delta: -5 });
+    }
+
+    if (avgEnergy < 4) {
+      score += 10;
+      factors.push({ label: `Énergie en baisse (${avgEnergy.toFixed(1)}/10 en moyenne)`, delta: 10 });
+    } else if (avgEnergy > 7) {
+      score -= 8;
+      factors.push({ label: 'Bonne énergie maintenue', delta: -8 });
+    }
+
+    if (avgMotivation < 4) {
+      score += 5;
+      factors.push({ label: `Motivation faible (${avgMotivation.toFixed(1)}/10)`, delta: 5 });
+    }
+  }
+
+  if (previousAssessment && latestAssessment.total_score > previousAssessment.total_score) {
+    const delta = Math.round(latestAssessment.total_score - previousAssessment.total_score);
+    score += 8;
+    factors.push({ label: `Score CBI en hausse de ${delta} pts vs diagnostic précédent`, delta: 8 });
+  }
+
+  if (weeksWithoutCheckin >= 3) {
+    score += 8;
+    factors.push({ label: `${weeksWithoutCheckin} semaines sans check-in`, delta: 8 });
+  }
+
+  const finalScore = Math.min(100, Math.max(0, score));
+
+  const mainFactors = factors
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 3)
+    .map(f => f.label);
+
+  if (mainFactors.length === 0) {
+    mainFactors.push('Basé sur le score du dernier diagnostic');
+  }
+
+  let level: RiskScore['level'];
+  let color: string;
+
+  if (finalScore >= 76) {
+    level = 'Critique';
+    color = '#991B1B';
+  } else if (finalScore >= 56) {
+    level = 'Élevé';
+    color = '#EF4444';
+  } else if (finalScore >= 31) {
+    level = 'Modéré';
+    color = '#F59E0B';
+  } else {
+    level = 'Faible';
+    color = '#1D9E75';
+  }
+
+  return { score: finalScore, level, color, mainFactors };
 }
 
 export function getBurnoutProfile(scores: BurnoutScores): BurnoutProfile {

@@ -197,6 +197,7 @@ export default function ResultsScreen() {
   const { assessmentId } = useLocalSearchParams<{ assessmentId: string }>();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [previousAssessment, setPreviousAssessment] = useState<Assessment | null>(null);
+  const [needsContext, setNeedsContext] = useState(false);
   const [loadingAssessment, setLoadingAssessment] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,7 +245,23 @@ export default function ResultsScreen() {
 
       if (cancelled) return;
 
-      setPreviousAssessment((previousData as Assessment | null) ?? null);
+      const previous = (previousData as Assessment | null) ?? null;
+      setPreviousAssessment(previous);
+
+      if (!previous) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('sector, remote_work, main_stress_source')
+          .eq('user_id', data.user_id)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        setNeedsContext(
+          !profile || (profile.sector === null && profile.remote_work === null && profile.main_stress_source === null)
+        );
+      }
+
       setLoadingAssessment(false);
     }
 
@@ -268,6 +285,12 @@ export default function ResultsScreen() {
 
   async function handleCreatePlan() {
     if (!assessmentId) return;
+
+    if (needsContext) {
+      router.push({ pathname: '/(onboarding)/context', params: { assessmentId } });
+      return;
+    }
+
     setError(null);
     setLoadingPlan(true);
     try {
@@ -334,7 +357,7 @@ export default function ResultsScreen() {
 
           <View style={[styles.scoreCard, { borderColor: riskColor }]}>
             <View style={styles.scoreLabelRow}>
-              <Text style={styles.scoreLabelMain}>Score global de burnout</Text>
+              <Text style={styles.scoreLabelMain}>Niveau de risque de burnout</Text>
               <View style={[styles.riskBadge, { backgroundColor: riskColor + '22' }]}>
                 <Text style={[styles.riskBadgeText, { color: riskColor }]}>
                   {RISK_LABELS[assessment.risk_level]}
@@ -352,6 +375,9 @@ export default function ResultsScreen() {
             </View>
 
             <Text style={styles.riskDescription}>{RISK_DESCRIPTIONS[assessment.risk_level]}</Text>
+            <Text style={styles.actionPrompt}>
+              Ces résultats vous aident à agir avant que la situation ne s'aggrave.
+            </Text>
           </View>
 
           <View style={styles.dimensionsCard}>
@@ -589,6 +615,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 21,
+  },
+  actionPrompt: {
+    fontSize: 13,
+    color: Colors.primary,
+    lineHeight: 19,
+    marginTop: 10,
+    fontWeight: '500',
   },
   dimensionsCard: {
     backgroundColor: Colors.surface,

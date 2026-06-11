@@ -7,6 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +17,7 @@ import { Colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
 import { checkSubscription } from '@/lib/subscription';
+import { deleteAccount } from '@/lib/auth';
 import PaywallModal from '@/components/PaywallModal';
 import type { SubscriptionTier } from '@/types/database';
 
@@ -32,6 +35,8 @@ export default function ProfileScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     checkSubscription().then((t) => {
@@ -48,6 +53,41 @@ export default function ProfileScreen() {
     } finally {
       setSigningOut(false);
       setConfirmSignOut(false);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    setDeleteError(null);
+    const title = 'Supprimer définitivement ?';
+    const message =
+      'Toutes vos données seront supprimées. Cette action est irréversible.';
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        runDeleteAccount();
+      }
+    } else {
+      Alert.alert(title, message, [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: runDeleteAccount },
+      ]);
+    }
+  }
+
+  async function runDeleteAccount() {
+    setDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+      router.replace('/(auth)/login');
+    } catch (err: unknown) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : 'Une erreur est survenue. Veuillez réessayer.'
+      );
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -177,6 +217,28 @@ export default function ProfileScreen() {
               <Text style={styles.legalLink}>Politique de confidentialité</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.deleteSeparator} />
+
+          <TouchableOpacity
+            onPress={confirmDeleteAccount}
+            disabled={deletingAccount}
+            activeOpacity={0.7}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator size="small" color={Colors.danger} />
+            ) : (
+              <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
+            )}
+          </TouchableOpacity>
+
+          {deleteError && (
+            <Text style={styles.deleteErrorText}>{deleteError}</Text>
+          )}
+
+          <Text style={styles.appDescription}>
+            Plateforme de prévention et détection précoce du burnout professionnel
+          </Text>
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
       </ScrollView>
@@ -414,10 +476,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
   },
+  appDescription: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
     color: Colors.textMuted,
+  },
+  deleteSeparator: {
+    height: 1,
+    backgroundColor: Colors.borderLight,
+    alignSelf: 'stretch',
+    marginVertical: 8,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: Colors.danger,
+    textDecorationLine: 'underline',
+  },
+  deleteErrorText: {
+    fontSize: 12,
+    color: Colors.danger,
+    textAlign: 'center',
+    marginTop: 4,
   },
   confirmBox: {
     backgroundColor: Colors.surface,

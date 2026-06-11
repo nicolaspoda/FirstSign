@@ -3,6 +3,7 @@
     "name": "burnout-app",
     "slug": "burnout-app",
     "version": "1.0.0",
+    "description": "Détectez les signes avant-coureurs du burnout professionnel avant qu'il ne soit trop tard. Évaluation scientifique CBI, suivi hebdomadaire et accompagnement personnalisé.",
     "scheme": "burnout-app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

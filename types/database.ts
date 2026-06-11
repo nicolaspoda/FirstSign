@@ -1,5 +1,6 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type SubscriptionTier = 'free' | 'premium';
+export type RemoteWork = 'yes' | 'no' | 'hybrid';
 
 export interface Database {
   public: {
@@ -10,18 +11,30 @@ export interface Database {
           user_id: string;
           created_at: string;
           subscription_tier: SubscriptionTier;
+          sector: string | null;
+          remote_work: RemoteWork | null;
+          is_manager: boolean | null;
+          main_stress_source: string | null;
         };
         Insert: {
           id?: string;
           user_id: string;
           created_at?: string;
           subscription_tier?: SubscriptionTier;
+          sector?: string | null;
+          remote_work?: RemoteWork | null;
+          is_manager?: boolean | null;
+          main_stress_source?: string | null;
         };
         Update: {
           id?: string;
           user_id?: string;
           created_at?: string;
           subscription_tier?: SubscriptionTier;
+          sector?: string | null;
+          remote_work?: RemoteWork | null;
+          is_manager?: boolean | null;
+          main_stress_source?: string | null;
         };
       };
       assessments: {

@@ -8,6 +8,7 @@ import type { Profile, Assessment, Checkin } from '@/types/database';
 export interface BurnoutData {
   profile: Profile | null;
   latestAssessment: Assessment | null;
+  previousAssessment: Assessment | null;
   recentCheckins: Checkin[];
   loading: boolean;
   error: Error | null;
@@ -17,6 +18,7 @@ export interface BurnoutData {
 interface CachePayload {
   profile: Profile | null;
   latestAssessment: Assessment | null;
+  previousAssessment: Assessment | null;
   recentCheckins: Checkin[];
   cachedAt: number;
 }
@@ -33,8 +35,7 @@ async function fetchFromSupabase(userId: string): Promise<CachePayload> {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(2),
     supabase
       .from('checkins')
       .select('*')
@@ -47,10 +48,13 @@ async function fetchFromSupabase(userId: string): Promise<CachePayload> {
   if (assessmentRes.error) throw assessmentRes.error;
   if (checkinsRes.error)   throw checkinsRes.error;
 
+  const assessments = (assessmentRes.data ?? []) as Assessment[];
+
   return {
-    profile:          (profileRes.data    ?? null) as Profile | null,
-    latestAssessment: (assessmentRes.data ?? null) as Assessment | null,
-    recentCheckins:   ((checkinsRes.data  ?? [])  as Checkin[]),
+    profile:             (profileRes.data ?? null) as Profile | null,
+    latestAssessment:    assessments[0] ?? null,
+    previousAssessment:  assessments[1] ?? null,
+    recentCheckins:      ((checkinsRes.data ?? []) as Checkin[]),
     cachedAt: Date.now(),
   };
 }
@@ -89,17 +93,19 @@ export async function clearBurnoutCache(userId: string): Promise<void> {
 export function useBurnoutData(): BurnoutData {
   const { user } = useAuth();
 
-  const [profile,          setProfile]          = useState<Profile | null>(null);
-  const [latestAssessment, setLatestAssessment] = useState<Assessment | null>(null);
-  const [recentCheckins,   setRecentCheckins]   = useState<Checkin[]>([]);
-  const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState<Error | null>(null);
+  const [profile,             setProfile]             = useState<Profile | null>(null);
+  const [latestAssessment,    setLatestAssessment]    = useState<Assessment | null>(null);
+  const [previousAssessment,  setPreviousAssessment]  = useState<Assessment | null>(null);
+  const [recentCheckins,      setRecentCheckins]      = useState<Checkin[]>([]);
+  const [loading,             setLoading]             = useState(true);
+  const [error,               setError]               = useState<Error | null>(null);
 
   const cacheKey = user ? `${CACHE_PREFIX}${user.id}` : null;
 
   const applyPayload = useCallback((payload: CachePayload) => {
     setProfile(payload.profile);
     setLatestAssessment(payload.latestAssessment);
+    setPreviousAssessment(payload.previousAssessment);
     setRecentCheckins(payload.recentCheckins);
   }, []);
 
@@ -162,5 +168,5 @@ export function useBurnoutData(): BurnoutData {
     }, [refresh])
   );
 
-  return { profile, latestAssessment, recentCheckins, loading, error, refresh };
+  return { profile, latestAssessment, previousAssessment, recentCheckins, loading, error, refresh };
 }

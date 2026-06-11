@@ -71,14 +71,13 @@ export default function WelcomeScreen() {
 
           <Animated.View style={[styles.headerContainer, headerStyle]}>
             <Text style={styles.title}>
-              Détectez votre burnout{'\n'}avant qu'il soit{'\n'}trop tard
+              Détectez les signes avant-coureurs du burnout
             </Text>
           </Animated.View>
 
           <Animated.View style={[styles.subtitleContainer, subtitleStyle]}>
             <Text style={styles.subtitle}>
-              Le questionnaire CBI validé scientifiquement pour évaluer
-              votre niveau d'épuisement professionnel
+              Avant qu'il ne soit trop tard. Un suivi scientifique et personnalisé pour protéger votre équilibre professionnel.
             </Text>
           </Animated.View>
 
@@ -101,7 +100,7 @@ export default function WelcomeScreen() {
             onPress={() => router.push(user ? '/(onboarding)/assessment' : '/(auth)/register')}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryButtonText}>Faire le diagnostic</Text>
+            <Text style={styles.primaryButtonText}>Démarrer mon évaluation gratuite</Text>
           </TouchableOpacity>
 
           {!user && (

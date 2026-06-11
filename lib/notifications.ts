@@ -35,8 +35,8 @@ export async function scheduleWeeklyCheckinReminder(): Promise<void> {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Check-in burnout',
-      body: "C'est lundi ! Faites votre check-in burnout de la semaine.",
+      title: 'Suivi hebdomadaire',
+      body: "C'est lundi ! Faites votre check-in de la semaine pour surveiller vos signaux d'alerte.",
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.WEEKLY,

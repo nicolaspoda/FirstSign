@@ -15,6 +15,7 @@ import { Colors } from '@/constants/colors';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
 import { useAuth } from '@/hooks/useAuth';
 import { detectTrend, shouldAlert, saveWeeklyCheckin, wellbeingScore } from '@/lib/checkin';
+import { calculateRiskScore } from '@/lib/burnout';
 import type { Checkin } from '@/types/database';
 
 function getISOWeek(date: Date): { week: number; year: number } {
@@ -114,7 +115,7 @@ const stepperStyles = StyleSheet.create({
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { latestAssessment, recentCheckins, loading, error, refresh } = useBurnoutData();
+  const { profile, latestAssessment, previousAssessment, recentCheckins, loading, error, refresh } = useBurnoutData();
 
   const [energy, setEnergy] = useState(7);
   const [motivation, setMotivation] = useState(7);
@@ -154,6 +155,24 @@ export default function DashboardScreen() {
     }
   }, [user, energy, motivation, stress, balance, refresh]);
 
+  const isPremium = profile?.subscription_tier === 'premium';
+
+  const weeksWithoutCheckin = (() => {
+    if (recentCheckins.length === 0) return 0;
+    const latest = recentCheckins[0];
+    const { week: cw, year: cy } = getISOWeek(new Date());
+    return Math.max(0, (cy - latest.year) * 52 + (cw - latest.week_number));
+  })();
+
+  const riskScore = latestAssessment && recentCheckins.length >= 3
+    ? calculateRiskScore({
+        checkins: recentCheckins.slice(0, 8),
+        latestAssessment,
+        previousAssessment,
+        weeksWithoutCheckin,
+      })
+    : null;
+
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -184,7 +203,7 @@ export default function DashboardScreen() {
             onPress={() => router.push('/(onboarding)/assessment')}
             activeOpacity={0.85}
           >
-            <Text style={styles.welcomeButtonText}>Faire mon premier diagnostic</Text>
+            <Text style={styles.welcomeButtonText}>Détectez vos signaux d'alerte</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -219,7 +238,7 @@ export default function DashboardScreen() {
 
         {/* Score burnout */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Score de burnout</Text>
+          <Text style={styles.cardTitle}>Votre risque de burnout actuel</Text>
           {latestAssessment ? (
             <>
               <View style={styles.scoreRow}>
@@ -261,7 +280,7 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/(onboarding)/assessment')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.retakeButtonText}>Refaire le diagnostic</Text>
+                <Text style={styles.retakeButtonText}>Refaire l'évaluation</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -271,11 +290,71 @@ export default function DashboardScreen() {
                 style={styles.ctaSmall}
                 onPress={() => router.push('/(onboarding)/welcome')}
               >
-                <Text style={styles.ctaSmallText}>Faire le diagnostic →</Text>
+                <Text style={styles.ctaSmallText}>Démarrer l'évaluation →</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
+
+        {/* Risque prédictif */}
+        {latestAssessment && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Risque d'aggravation dans 4 semaines</Text>
+            {riskScore === null ? (
+              <View style={styles.riskInsufficientData}>
+                <Ionicons name="analytics-outline" size={32} color={Colors.textMuted} />
+                <Text style={styles.riskInsufficientText}>
+                  Complétez 3 check-ins pour activer la prévision
+                </Text>
+                <Text style={styles.riskInsufficientSub}>
+                  {recentCheckins.length}/3 check-ins effectués
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.riskScoreRow}>
+                  <Text style={[styles.riskScoreValue, { color: riskScore.color }]}>
+                    {riskScore.score}%
+                  </Text>
+                  <View style={[styles.riskLevelBadge, { backgroundColor: riskScore.color + '22' }]}>
+                    <Text style={[styles.riskLevelText, { color: riskScore.color }]}>
+                      {riskScore.level}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.riskBarTrack}>
+                  <View
+                    style={[
+                      styles.riskBarFill,
+                      { width: `${riskScore.score}%` as any, backgroundColor: riskScore.color },
+                    ]}
+                  />
+                </View>
+                {isPremium ? (
+                  <View style={styles.riskFactors}>
+                    {riskScore.mainFactors.map((factor, i) => (
+                      <View key={i} style={styles.riskFactorRow}>
+                        <View style={[styles.riskFactorDot, { backgroundColor: riskScore.color }]} />
+                        <Text style={styles.riskFactorText}>{factor}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.riskPremiumTeaser}
+                    onPress={() => router.push('/(tabs)/profile')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="lock-closed-outline" size={13} color={Colors.textMuted} />
+                    <Text style={styles.riskPremiumTeaserText}>
+                      Facteurs détaillés disponibles en Premium
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        )}
 
         {/* Graphique 4 semaines */}
         <View style={styles.card}>
@@ -615,5 +694,81 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  riskInsufficientData: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  riskInsufficientText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  riskInsufficientSub: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  riskScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  riskScoreValue: {
+    fontSize: 40,
+    fontWeight: '800',
+    lineHeight: 48,
+  },
+  riskLevelBadge: {
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  riskLevelText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  riskBarTrack: {
+    height: 8,
+    backgroundColor: Colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  riskBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  riskFactors: {
+    gap: 8,
+  },
+  riskFactorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  riskFactorDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  riskFactorText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  riskPremiumTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  riskPremiumTeaserText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    fontStyle: 'italic',
   },
 });

@@ -89,7 +89,8 @@ pour la roadmap détaillée vers 9/10.
 - **Supabase** (Postgres + Auth + Edge Functions Deno + Row Level Security)
   - `@supabase/supabase-js ^2.108.1`
   - 1 migration : `supabase/migrations/20260602000001_initial_schema.sql`
-  - 3 Edge Functions : `calculate-burnout-score`, `generate-action-plan`, `ai-companion`
+  - 4 Edge Functions : `calculate-burnout-score`, `generate-action-plan`, `ai-companion`,
+    `delete-account`
 - **Gemini 2.5 Flash** (API Google) — moteur du compagnon IA, appelé depuis
   l'edge function `ai-companion` (`thinkingBudget: 0`, `maxOutputTokens: 1024`)
 
@@ -152,6 +153,14 @@ pour la roadmap détaillée vers 9/10.
   du plan
 - `welcome.tsx` contient déjà l'accroche "Détectez votre burnout avant qu'il soit trop
   tard" — proche de la tagline officielle mais à harmoniser (cf. section 5, point 1)
+- `context.tsx` : écran d'onboarding enrichi affiché **uniquement après le tout premier
+  diagnostic** (pas de diagnostic précédent) **et** si le contexte n'a pas encore été
+  renseigné (`profiles.sector`, `remote_work`, `main_stress_source` tous `NULL`).
+  4 questions à choix unique (secteur d'activité, télétravail, rôle, principale source
+  de stress), bouton "Continuer" désactivé tant que les 4 ne sont pas répondues, lien
+  "Passer" qui enregistre `NULL` partout. Dans les deux cas, enchaîne ensuite sur la
+  génération du plan d'action (`generateActionPlan` + `plan-preview`), exactement comme
+  le CTA "Créer mon plan d'action" de `results.tsx`.
 
 **Statut : 100% fonctionnel.** Tier : **gratuit**.
 
@@ -177,8 +186,23 @@ pour la roadmap détaillée vers 9/10.
 
 ### 4.5 Plan d'action 8 semaines (`app/(tabs)/plan.tsx`, `lib/planProgress.ts`,
 `supabase/functions/generate-action-plan`)
-- Génération d'un programme **8 semaines × 3 actions**, choisi parmi 4 jeux de
-  templates (critical/high/medium/low) entièrement rédigés en français
+- Génération d'un programme **8 semaines × 3 actions** via **Gemini 2.5 Flash**
+  (`responseMimeType: 'application/json'` + `responseSchema`), à partir du profil
+  CBI complet (3 dimensions + `risk_level`), du contexte utilisateur (secteur,
+  télétravail, rôle de manager, source de stress principale) et de la tendance des
+  4 derniers check-ins. Prompt système en français, règles de progressivité
+  (semaine 1 simple → semaine 8 avancée), adaptation selon le niveau de risque
+  (critical/high → récupération immédiate semaines 1-2 ; medium/low → prévention),
+  actions dédiées délégation/management si manager, et déconnexion/rituels si
+  full remote
+- Réponse Gemini parsée et validée (8 semaines × 3 actions avec `title`,
+  `description`, `duration`, `category`) ; en cas d'erreur de parsing/validation ou
+  d'échec de l'appel Gemini, **fallback automatique** sur les 4 jeux de templates
+  statiques historiques (critical/high/medium/low), pour ne jamais casser le flow
+- Vérification serveur du tier premium (`profiles.subscription_tier === 'premium'`),
+  comme dans `ai-companion` : sinon `403 PREMIUM_REQUIRED`, géré côté client par
+  `lib/api.ts` (`generateActionPlan`) et affiché via `PaywallModal` dans
+  `results.tsx`, `context.tsx` et `plan.tsx`
 - Suivi de progression : % global, semaine en cours, **streaks** (semaine = "réussie"
   si toutes les actions sont cochées ET un check-in existe dans la fenêtre de la
   semaine), meilleure streak
@@ -187,8 +211,7 @@ pour la roadmap détaillée vers 9/10.
   (avec CTA "Refaire")
 - Lien vers la bibliothèque d'exercices (premium)
 
-**Statut : 100% fonctionnel côté UI.** Tier : **premium** (gating client uniquement,
-voir section 5, point 9, pour la sécurisation côté serveur).
+**Statut : 100% fonctionnel.** Tier : **premium** (gating client ET serveur).
 
 ### 4.6 Bibliothèque d'exercices (`app/exercises.tsx`, `lib/exercises.ts`)
 - 14 exercices (5 respiration, 5 pleine conscience, 5 restructuration cognitive 
@@ -207,8 +230,12 @@ voir section 5, point 9, pour la sécurisation côté serveur).
 - Limite **3 conversations/mois** pour les utilisateurs gratuits — **vérifiée
   côté serveur ET client** (la seule des 3 edge functions à le faire correctement)
 - Disclaimer "ne remplace pas un professionnel de santé"
-- N'utilise actuellement que le **dernier diagnostic CBI** comme contexte — pas
-  l'historique des check-ins (cf. section 5, point 2)
+- Utilise le **dernier diagnostic CBI** + les **12 dernières semaines de check-ins**
+  comme contexte, avec analyse des tendances (énergie, stress, motivation, semaines
+  consécutives en dégradation) — l'IA peut commenter proactivement les évolutions
+- Utilise aussi le **contexte utilisateur** collecté à l'onboarding enrichi (secteur,
+  télétravail, rôle de manager, principale source de stress, cf. section 4.2 et
+  schéma de base de données) lorsqu'il est renseigné
 
 **Statut : 100% fonctionnel.** Tier : **gratuit (3/mois) + premium (illimité)**.
 
@@ -233,10 +260,17 @@ jamais vérifiées via `canAccess` (limites codées en dur ailleurs) — cf. sec
 - Lien "Mode dev" (visible seulement en `__DEV__`)
 - Liens légaux CGU/confidentialité → **placeholders `#` non fonctionnels**
 - "Version 1.0.0"
-- **Pas de bouton "Supprimer mon compte"** (cf. section 5, point 3)
+- **Bouton "Supprimer mon compte"** (texte rouge, sous un séparateur après les liens
+  légaux) : confirmation cross-platform (web: `window.confirm`, natif: `Alert.alert`),
+  appelle l'edge function `delete-account` (JWT vérifié côté serveur), affiche un
+  spinner pendant la suppression, redirige vers `/(auth)/login` après succès.
+  Fonction client `deleteAccount()` dans `lib/auth.ts`.
+  Edge function : `supabase/functions/delete-account/index.ts` — suppression dans
+  l'ordre : `ai_conversations` → `action_plans` → `checkins` → `assessments` →
+  `profiles` → `auth.users` (`admin.deleteUser`).
 
-**Statut : partiel** — voir section 5, points 3 et 7 (suppression de compte,
-CGU/confidentialité manquantes).
+**Statut : partiel** — voir section 5, point 7 (CGU/confidentialité manquantes).
+Suppression de compte : **100% fonctionnel**.
 
 ### 4.10 Notifications (`lib/notifications.ts`)
 - Rappel hebdomadaire (lundi 9h) "Faites votre check-in burnout de la semaine"
@@ -267,20 +301,20 @@ CGU/confidentialité manquantes).
 
 ### Phase 1 — Rapide (quelques jours, 100% gratuit) → objectif 7,5/10
 
-- [ ] **1. Repositionnement messaging**
+- [x] **1. Repositionnement messaging**
   Faire passer tous les textes de l'app de "mesurer ton burnout" vers "détecter les
   signes avant-coureurs" (tagline officielle, cf. section 1).
   Fichiers concernés : `app/(onboarding)/welcome.tsx` (déjà proche, à harmoniser),
   `app/(onboarding)/results.tsx`, `app/(tabs)/profile.tsx`, `app.json` (ajouter un
   champ `description`, actuellement absent), et tous les textes UI pertinents.
 
-- [ ] **2. IA avec historique complet**
+- [x] **2. IA avec historique complet**
   Modifier `supabase/functions/ai-companion/index.ts` pour injecter les 12 dernières
   semaines de check-ins (table `checkins`) dans le contexte envoyé à Gemini, en plus
   du dernier diagnostic CBI déjà utilisé. Exemple de ce que l'IA pourra dire :
   "Je vois que ton énergie baisse depuis 3 semaines consécutives."
 
-- [ ] **3. Suppression du compte**
+- [x] **3. Suppression du compte**
   Bouton "Supprimer mon compte" dans `app/(tabs)/profile.tsx`. Doit supprimer toutes
   les données Supabase de l'utilisateur (`profiles`, `assessments`, `checkins`,
   `action_plans`, `ai_conversations`) puis le compte `auth.users` (edge function avec
@@ -288,18 +322,18 @@ CGU/confidentialité manquantes).
 
 ### Phase 2 — Différenciation (1-2 semaines, 100% gratuit) → objectif 8,5/10
 
-- [ ] **4. Score de risque prédictif**
+- [x] **4. Score de risque prédictif**
   Algorithme calculant un % de risque de dégradation dans les 4 prochaines semaines,
   basé sur : la tendance des check-ins, l'évolution du score CBI, et la fréquence
   d'utilisation. À afficher dans le dashboard, ex. : "Risque de dégradation : 73% ⚠️".
   Fichiers : `lib/burnout.ts`, `app/(tabs)/index.tsx`.
 
-- [ ] **5. Plan d'action IA dynamique**
+- [x] **5. Plan d'action IA dynamique**
   Remplacer les 4 jeux de templates statiques (critical/high/medium/low, cf. 4.5) par
   une génération Gemini basée sur le profil CBI complet + le contexte utilisateur
   collecté au point 6. Fichier : `supabase/functions/generate-action-plan/index.ts`.
 
-- [ ] **6. Onboarding enrichi**
+- [x] **6. Onboarding enrichi**
   Collecter 3-4 informations après le CBI : secteur d'activité, télétravail
   (oui/non/hybride), rôle (manager ou non), principale source de stress — pour
   personnaliser le plan d'action et le compagnon IA.
@@ -318,11 +352,9 @@ CGU/confidentialité manquantes).
   possible. Nouveaux fichiers : `app/b2b/`, `lib/b2b.ts`.
 
 - [ ] **9. Sécurité Edge Functions**
-  - `generate-action-plan` n'a aucune vérification serveur du tier premium : le
-    gating repose entièrement sur le client (`canAccess('action_plan')`). Un appel
-    direct à l'edge function par un compte gratuit générerait quand même un plan.
-    → Ajouter une vérification `profiles.subscription_tier === 'premium'` côté
-    serveur, comme c'est déjà fait dans `ai-companion`.
+  - [x] `generate-action-plan` n'a aucune vérification serveur du tier premium —
+    **fait au point 5** : vérification `profiles.subscription_tier === 'premium'`
+    côté serveur (`403 PREMIUM_REQUIRED`), comme dans `ai-companion`.
   - Les 3 edge functions (`calculate-burnout-score`, `generate-action-plan`,
     `ai-companion`) tournent avec la service role key et font confiance au `user_id`
     envoyé par le client dans le body, sans vérifier qu'il correspond au JWT de la
@@ -381,6 +413,14 @@ CGU/confidentialité manquantes).
   à reproduire pour `generate-action-plan` (voir section 5, point 9).
 - **Rappel hebdomadaire de check-in** programmé automatiquement à la fin du diagnostic
   (`results.tsx`), pas configurable par l'utilisateur actuellement.
+- **Score de risque prédictif** (`lib/burnout.ts`, `calculateRiskScore`) : calcule un
+  score 0-100 de risque de dégradation dans les 4 prochaines semaines. Base = score CBI
+  actuel, modifié par : tendance des 4 derniers check-ins (±15/−10), stress moyen > 7
+  (+10) ou < 4 (−5), énergie moyenne < 4 (+10) ou > 7 (−8), motivation < 4 (+5),
+  aggravation CBI vs diagnostic précédent (+8), ≥ 3 semaines sans check-in (+8).
+  Niveaux : Faible (0-30, vert), Modéré (31-55, orange), Élevé (56-75, rouge),
+  Critique (76+, rouge foncé). Affichage dans le dashboard : carte visible par tous,
+  facteurs détaillés réservés aux comptes Premium.
 
 ---
 
@@ -388,7 +428,12 @@ CGU/confidentialité manquantes).
 
 5 tables, RLS activé partout (`auth.uid() = user_id`) :
 - `profiles` (1:1 avec `auth.users`, créée par trigger `handle_new_user`,
-  contient `subscription_tier`)
+  contient `subscription_tier` ainsi que le contexte utilisateur de l'onboarding
+  enrichi : `sector` (text, secteur d'activité), `remote_work` (text, `'yes' | 'no' |
+  'hybrid'`), `is_manager` (boolean, défaut `false`), `main_stress_source` (text).
+  `sector`/`remote_work`/`main_stress_source` restent `NULL` tant que l'écran
+  `/(onboarding)/context` n'a pas été complété ou explicitement passé — c'est ce
+  triplet qui sert de signal "contexte non renseigné" dans `results.tsx`)
 - `assessments` (résultats de diagnostic CBI : scores par dimension, `total_score`,
   `risk_level`)
 - `checkins` (check-ins hebdo, contrainte unique `user_id, year, week_number`)
@@ -399,5 +444,8 @@ Migrations :
 - `supabase/migrations/20260602000001_initial_schema.sql` (schéma initial)
 - `supabase/migrations/20260611000001_cbi_score_columns.sql` (élargissement des
   colonnes de score à `numeric(5,2)` pour supporter les scores CBI à 100)
+- `supabase/migrations/20260612000001_user_context.sql` (colonnes de contexte
+  utilisateur sur `profiles` : `sector`, `remote_work`, `is_manager`,
+  `main_stress_source`)
 
 Types TS : `types/database.ts`

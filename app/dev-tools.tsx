@@ -159,6 +159,36 @@ export default function DevToolsScreen() {
     if (error) throw error;
   }
 
+  async function simulateSevereDecline(userId: string) {
+    // 4 check-ins en fort déclin → active le modificateur tendance +15
+    // + stress moyen 8.5 > 7 (+10) + énergie moyenne 2.5 < 4 (+10) + motivation 2.5 < 4 (+5)
+    const weeks = [
+      [4, 5, 5, 6, 5],  // il y a 4 semaines : encore correct
+      [3, 4, 4, 7, 4],  // il y a 3 semaines : début de dégradation
+      [2, 2, 2, 9, 2],  // il y a 2 semaines : fort déclin
+      [1, 2, 2, 9, 2],  // semaine dernière : critique
+    ] as const;
+
+    const rows = weeks.map(([back, energy, motivation, stress, balance]) => {
+      const { week_number, year, created_at } = isoWeekForOffset(back);
+      return {
+        user_id: userId,
+        week_number,
+        year,
+        energy,
+        motivation,
+        stress,
+        work_life_balance: balance,
+        created_at,
+      };
+    });
+
+    const { error } = await supabase
+      .from('checkins')
+      .upsert(rows, { onConflict: 'user_id,year,week_number' });
+    if (error) throw error;
+  }
+
   async function setPremium(userId: string) {
     const { error } = await supabase
       .from('profiles')
@@ -278,6 +308,15 @@ export default function DevToolsScreen() {
           variant="warning"
           confirmMsg="Insérer 3 check-ins en forte chute ? Écrase les 3 dernières semaines."
           action={simulateDegradation}
+        />
+
+        <Btn
+          id="severeDecline"
+          label="4 semaines de déclin sévère"
+          sublabel="Score prédictif → Critique (tendance +15, stress +10, énergie +10)"
+          variant="warning"
+          confirmMsg="Insérer 4 check-ins en fort déclin ? Écrase les 4 dernières semaines."
+          action={simulateSevereDecline}
         />
 
         <Btn

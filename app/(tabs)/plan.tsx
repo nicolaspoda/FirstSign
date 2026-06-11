@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
@@ -171,9 +171,11 @@ export default function PlanScreen() {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [inlineMsg, setInlineMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-  useEffect(() => {
-    canAccess('action_plan').then(setIsPremium);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      canAccess('action_plan').then(setIsPremium);
+    }, [])
+  );
 
   useEffect(() => {
     if (activated === '1') {
@@ -266,15 +268,15 @@ export default function PlanScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
           <Ionicons name="clipboard-outline" size={48} color={Colors.textMuted} style={styles.emptyIcon} />
-          <Text style={styles.emptyTitle}>Faites le diagnostic d'abord</Text>
+          <Text style={styles.emptyTitle}>Démarrez votre évaluation d'abord</Text>
           <Text style={styles.emptySubtitle}>
-            Le plan d'action est généré à partir de votre diagnostic CBI.
+            Le plan d'action est généré à partir de votre évaluation CBI.
           </Text>
           <TouchableOpacity
             style={styles.ctaButton}
             onPress={() => router.push('/(onboarding)/welcome')}
           >
-            <Text style={styles.ctaButtonText}>Faire le diagnostic</Text>
+            <Text style={styles.ctaButtonText}>Démarrer l'évaluation</Text>
           </TouchableOpacity>
         </View>
         <PaywallModal visible={showPaywall} onClose={() => setShowPaywall(false)} />
