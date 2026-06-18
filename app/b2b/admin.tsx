@@ -6,30 +6,63 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Colors } from '@/constants/colors';
-import { createOrganization, getMyOrganizationInfo, type OrganizationInfo } from '@/lib/b2b';
+import {
+  createOrganization,
+  getMyOrganizationInfo,
+  getOrganizationMembers,
+  removeMember,
+  type OrganizationInfo,
+  type OrganizationMember,
+} from '@/lib/b2b';
+
+function formatJoinDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function confirmRemove(name: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`Retirer ${name} de l'organisation ?`)) onConfirm();
+  } else {
+    Alert.alert('Retirer ce membre', `Retirer ${name} de l'organisation ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Retirer', style: 'destructive', onPress: onConfirm },
+    ]);
+  }
+}
 
 export default function B2BAdminScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState<OrganizationInfo | null>(null);
+  const [members, setMembers] = useState<OrganizationMember[]>([]);
 
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const [copied, setCopied] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getMyOrganizationInfo();
       setInfo(result);
+      if (result) {
+        const list = await getOrganizationMembers(result.organization.id);
+        setMembers(list);
+      } else {
+        setMembers([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -62,6 +95,19 @@ export default function B2BAdminScreen() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleRemove(member: OrganizationMember, index: number) {
+    confirmRemove(`Membre #${index + 1}`, async () => {
+      setRemovingId(member.id);
+      try {
+        await removeMember(member.id);
+        setMembers((prev) => prev.filter((m) => m.id !== member.id));
+        setInfo((prev) => prev ? { ...prev, memberCount: prev.memberCount - 1 } : prev);
+      } finally {
+        setRemovingId(null);
+      }
+    });
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -81,11 +127,11 @@ export default function B2BAdminScreen() {
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       ) : info ? (
-        <View style={styles.content}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Org header */}
           <View style={styles.card}>
             <Text style={styles.orgLabel}>Organisation</Text>
             <Text style={styles.orgName}>{info.organization.name}</Text>
-
             <View style={styles.statRow}>
               <Ionicons name="people-outline" size={20} color={Colors.primary} />
               <Text style={styles.statText}>
@@ -94,6 +140,7 @@ export default function B2BAdminScreen() {
             </View>
           </View>
 
+          {/* Invite code */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Code d'invitation</Text>
             <Text style={styles.subtitle}>
@@ -106,6 +153,44 @@ export default function B2BAdminScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Members list */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Membres ({members.length})</Text>
+            {members.length === 0 ? (
+              <View style={styles.emptyMembers}>
+                <Ionicons name="person-add-outline" size={32} color={Colors.textMuted} />
+                <Text style={styles.emptyText}>Aucun membre pour l'instant.{'\n'}Partagez le code d'invitation.</Text>
+              </View>
+            ) : (
+              members.map((member, index) => (
+                <View
+                  key={member.id}
+                  style={[styles.memberRow, index < members.length - 1 && styles.memberRowBorder]}
+                >
+                  <View style={styles.memberAvatar}>
+                    <Text style={styles.memberAvatarText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName}>Membre #{index + 1}</Text>
+                    <Text style={styles.memberDate}>Rejoint le {formatJoinDate(member.joined_at)}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => handleRemove(member, index)}
+                    disabled={removingId === member.id}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    {removingId === member.id ? (
+                      <ActivityIndicator size="small" color={Colors.danger} />
+                    ) : (
+                      <Ionicons name="person-remove-outline" size={18} color={Colors.danger} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => router.push('/b2b/dashboard')}
@@ -113,7 +198,7 @@ export default function B2BAdminScreen() {
           >
             <Text style={styles.primaryButtonText}>Voir le dashboard équipe</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       ) : (
         <View style={styles.content}>
           <Ionicons name="business-outline" size={48} color={Colors.primary} style={styles.icon} />
@@ -181,6 +266,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 40,
   },
   content: {
     flex: 1,
@@ -253,7 +343,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   orgLabel: {
     fontSize: 12,
@@ -304,5 +394,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  emptyMembers: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 10,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  memberRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  memberAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  memberDate: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  removeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

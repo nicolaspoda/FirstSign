@@ -101,6 +101,30 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
   return { isMember: !!membership || !!org, isAdmin: !!org };
 }
 
+export interface OrganizationMember {
+  id: string;
+  user_id: string;
+  joined_at: string;
+}
+
+export async function getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('id, user_id, joined_at')
+    .eq('organization_id', organizationId)
+    .order('joined_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as OrganizationMember[];
+}
+
+export async function removeMember(memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from('organization_members')
+    .delete()
+    .eq('id', memberId);
+  if (error) throw error;
+}
+
 export async function getMyOrganizationInfo(): Promise<OrganizationInfo | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
