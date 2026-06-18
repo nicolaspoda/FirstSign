@@ -65,6 +65,9 @@ export async function createOrganization(name: string): Promise<Organization> {
       .single();
 
     if (!error) return data as Organization;
+    if (error.code === '23505' && error.message.includes('admin_user_id')) {
+      throw new Error('Vous avez déjà une organisation. Supprimez-la avant d\'en créer une nouvelle.');
+    }
     if (error.code !== '23505') throw error; // not a unique violation on `code` — give up
     lastError = error;
   }
@@ -88,10 +91,12 @@ export async function getMembershipStatus(): Promise<MembershipStatus> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { isMember: false, isAdmin: false };
 
-  const [{ data: org }, { data: membership }] = await Promise.all([
-    supabase.from('organizations').select('id').eq('admin_user_id', user.id).maybeSingle(),
-    supabase.from('organization_members').select('id').eq('user_id', user.id).maybeSingle(),
+  const [{ data: orgs }, { data: memberships }] = await Promise.all([
+    supabase.from('organizations').select('id').eq('admin_user_id', user.id).limit(1),
+    supabase.from('organization_members').select('id').eq('user_id', user.id).limit(1),
   ]);
+  const org = orgs?.[0] ?? null;
+  const membership = memberships?.[0] ?? null;
 
   return { isMember: !!membership || !!org, isAdmin: !!org };
 }
@@ -100,12 +105,13 @@ export async function getMyOrganizationInfo(): Promise<OrganizationInfo | null> 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: org, error } = await supabase
+  const { data: orgs, error } = await supabase
     .from('organizations')
     .select('*')
     .eq('admin_user_id', user.id)
-    .maybeSingle();
+    .limit(1);
   if (error) throw error;
+  const org = orgs?.[0] ?? null;
   if (!org) return null;
 
   const { count, error: countError } = await supabase

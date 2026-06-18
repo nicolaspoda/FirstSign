@@ -226,6 +226,58 @@ export default function DevToolsScreen() {
     ]);
   }
 
+  async function createTestOrg(_userId: string) {
+    const { createOrganization, getMyOrganizationInfo } = await import('@/lib/b2b');
+    const existing = await getMyOrganizationInfo();
+    if (existing) throw new Error('Tu as déjà une organisation. Supprime-la d\'abord.');
+    await createOrganization('Entreprise Test');
+  }
+
+  async function seedOrgMembers(_userId: string) {
+    const { error, data } = await supabase.functions.invoke('dev-seed-org', {
+      body: { action: 'seed' },
+    });
+    if (error) {
+      const msg = typeof data?.message === 'string' ? data.message : error.message;
+      throw new Error(msg);
+    }
+  }
+
+  async function cleanOrgMembers(_userId: string) {
+    const { error, data } = await supabase.functions.invoke('dev-seed-org', {
+      body: { action: 'clean' },
+    });
+    if (error) {
+      const msg = typeof data?.message === 'string' ? data.message : error.message;
+      throw new Error(msg);
+    }
+  }
+
+  async function deleteOrg(_userId: string) {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) throw new Error('Non connecté');
+    // Clean ghost members first, then delete the org (cascade handles members)
+    await supabase.functions.invoke('dev-seed-org', { body: { action: 'clean' } });
+    const { error } = await supabase.from('organizations').delete().eq('admin_user_id', u.id);
+    if (error) throw error;
+  }
+
+  async function forceDeleteAllOrgs(_userId: string) {
+    const { data: { user: u } } = await supabase.auth.getUser();
+    if (!u) throw new Error('Non connecté');
+    // Best-effort ghost cleanup (ignore errors — org may be corrupted)
+    await supabase.functions.invoke('dev-seed-org', { body: { action: 'clean' } }).catch(() => {});
+    const { data: orgs, error: listErr } = await supabase
+      .from('organizations')
+      .select('id')
+      .eq('admin_user_id', u.id);
+    if (listErr) throw listErr;
+    for (const org of orgs ?? []) {
+      const { error } = await supabase.from('organizations').delete().eq('id', org.id);
+      if (error) throw error;
+    }
+  }
+
   // ── UI helpers ───────────────────────────────────────────────────────────
 
   type BtnVariant = 'primary' | 'secondary' | 'danger' | 'warning';
@@ -345,7 +397,72 @@ export default function DevToolsScreen() {
           action={setFree}
         />
 
-        {/* Section 2 */}
+        {/* Section 2 — Organisation B2B */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Organisation B2B</Text>
+
+        <Btn
+          id="createOrg"
+          label="Créer une organisation de test"
+          sublabel={'"Entreprise Test" — si tu n\'en as pas encore'}
+          variant="secondary"
+          confirmMsg="Créer l'organisation « Entreprise Test » ?"
+          action={createTestOrg}
+        />
+
+        <Btn
+          id="seedMembers"
+          label="Simuler 10 membres avec données"
+          sublabel="3 low · 4 medium · 2 high · 1 critical — débloque le dashboard"
+          confirmMsg="Créer 10 membres fantômes dans ton organisation ? (nécessite d'avoir une org)"
+          action={seedOrgMembers}
+        />
+
+        <TouchableOpacity
+          style={[styles.btn, btnVariantStyles.secondary.btn]}
+          onPress={() => router.push('/b2b/admin')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.btnLabel, btnVariantStyles.secondary.label]}>Aller sur l'admin B2B</Text>
+          <Text style={[styles.btnSublabel, btnVariantStyles.secondary.sublabel]}>Gérer l'organisation et voir le code</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.btn, btnVariantStyles.secondary.btn]}
+          onPress={() => router.push('/b2b/dashboard')}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.btnLabel, btnVariantStyles.secondary.label]}>Aller sur le dashboard équipe</Text>
+          <Text style={[styles.btnSublabel, btnVariantStyles.secondary.sublabel]}>Voir les stats (10 membres requis)</Text>
+        </TouchableOpacity>
+
+        <Btn
+          id="cleanMembers"
+          label="Supprimer les membres simulés"
+          sublabel="Efface les 10 ghosts et leurs données"
+          variant="warning"
+          confirmMsg="Supprimer tous les membres fantômes et leurs données ?"
+          action={cleanOrgMembers}
+        />
+
+        <Btn
+          id="forceDeleteAllOrgs"
+          label="Reset urgence — toutes mes orgs"
+          sublabel="Efface toutes les orgs si tu en as plusieurs (état incohérent)"
+          variant="danger"
+          confirmMsg="Supprimer TOUTES tes organisations et leurs membres ? À utiliser uniquement pour corriger un état incohérent."
+          action={forceDeleteAllOrgs}
+        />
+
+        <Btn
+          id="deleteOrg"
+          label="Supprimer mon organisation"
+          sublabel="Efface l'org, les membres et leurs données"
+          variant="danger"
+          confirmMsg="Supprimer définitivement l'organisation et tous ses membres ?"
+          action={deleteOrg}
+        />
+
+        {/* Section 3 */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Nettoyer</Text>
 
         <Btn
