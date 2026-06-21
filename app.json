@@ -3,7 +3,7 @@
     "name": "FirstSign",
     "slug": "firstsign",
     "version": "1.0.0",
-    "description": "FirstSign détecte les signes avant-coureurs du burnout professionnel avant qu'il ne soit trop tard. Évaluation scientifique CBI, suivi hebdomadaire et accompagnement personnalisé.",
+    "description": "Détectez les signes avant-coureurs du burnout avant qu'il ne soit trop tard. Diagnostic scientifique CBI, suivi personnalisé, et IA bienveillante.",
     "scheme": "firstsign",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

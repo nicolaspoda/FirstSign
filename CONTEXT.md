@@ -566,3 +566,13 @@ Migrations :
   `organization_members` + RPC `join_organization_by_code`)
 
 Types TS : `types/database.ts`
+
+---
+
+## Assets et métadonnées stores
+
+- **Métadonnées App Store Connect** (nom, sous-titre, description longue, mots-clés,
+  catégorie) : `/store-assets/metadata.md` — prêt à copier-coller dans App Store Connect.
+- **Icône 1024×1024** : `/store-assets/icon/` — dossier à compléter avec `icon-1024.png`
+  (fond vert `#1D9E75`, onde de signal blanche) avant le build EAS iOS.
+  Voir `/store-assets/icon/README.md` pour les spécifications et l'intégration `app.json`.
