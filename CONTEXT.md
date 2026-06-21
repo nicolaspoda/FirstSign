@@ -1,7 +1,7 @@
-# CONTEXT.md — BurnoutApp
+# CONTEXT.md — FirstSign
 
 > Document de contexte pour reprendre le développement dans une nouvelle session
-> (Claude Code ou claude.ai). Mis à jour le 2026-06-11.
+> (Claude Code ou claude.ai). Mis à jour le 2026-06-21.
 
 ---
 
@@ -27,7 +27,7 @@
 
 **Tagline** : _« Détectez les signes avant-coureurs du burnout avant qu'il ne soit trop tard »_
 
-**BurnoutApp** est une application mobile (iOS/Android/Web via Expo) de **prévention et
+**FirstSign** est une application mobile (iOS/Android/Web via Expo) de **prévention et
 détection précoce du burnout professionnel**, positionnée comme un outil
 d'auto-évaluation et d'accompagnement quotidien — pas un dispositif médical, pas un
 substitut à un professionnel de santé.
@@ -62,7 +62,7 @@ d'épuisement professionnel, recherchant un premier diagnostic actionnable sans 
   agrégé et anonymisé pour les équipes.
 
 **Concurrent principal** : BurnoutGuard (4,99$/mois) — un tracker simple, sans
-questionnaire scientifique (MBI/CBI) ni programme structuré. Avantage BurnoutApp :
+questionnaire scientifique (MBI/CBI) ni programme structuré. Avantage FirstSign :
 CBI scientifique + programme 8 semaines + IA personnalisée.
 
 **Évaluation actuelle** : ~6,5/10 en tant que produit commercial — voir section 5
@@ -72,6 +72,9 @@ pour la roadmap détaillée vers 9/10.
 
 ## 2. Décisions produit importantes déjà prises
 
+- **Renommage FirstSign (2026-06-21)** : le projet s'appelait auparavant "BurnoutApp".
+  Bundle identifier `com.burnoutapp` conservé temporairement — changement prévu avant
+  soumission finale aux stores (nécessite de recréer l'app dans tous les services).
 - **MBI → CBI** : le Maslach Burnout Inventory (payant) a été remplacé par le
   Copenhagen Burnout Inventory, libre de droits et scientifiquement validé.
 - **Gemini 2.5 Flash plutôt qu'un modèle Anthropic** pour le compagnon IA — choix
@@ -124,7 +127,7 @@ pour la roadmap détaillée vers 9/10.
 
 ### Config Expo notable (`app.json`)
 
-- `scheme: "burnout-app"`, bundle id `com.burnoutapp` (iOS/Android)
+- `scheme: "firstsign"`, bundle id `com.burnoutapp` (iOS/Android, conservé temporairement)
 - EAS project id configuré (`extra.eas.projectId`)
 - Couleur de marque : `#1D9E75` (splash screen, icône adaptive Android)
 - Champ `description` renseigné (tagline officielle, cf. section 5, point 1)

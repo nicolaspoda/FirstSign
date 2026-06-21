@@ -1,10 +1,10 @@
-# Conditions Générales d'Utilisation — BurnoutApp
+# Conditions Générales d'Utilisation — FirstSign
 
 *Dernière mise à jour : juin 2026*
 
 ## Article 1 — Éditeur de l'application
 
-L'application mobile **BurnoutApp** (ci-après « l'Application ») est éditée par :
+L'application mobile **FirstSign** (ci-après « l'Application ») est éditée par :
 
 Nicolas Poda, développeur indépendant
 Toulouse, France
@@ -18,7 +18,7 @@ Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») ont po
 définir les modalités et conditions d'utilisation de l'Application, ainsi que les
 droits et obligations des utilisateurs (ci-après « l'Utilisateur » ou « vous »).
 
-BurnoutApp est un outil **de prévention et de détection précoce de l'épuisement
+FirstSign est un outil **de prévention et de détection précoce de l'épuisement
 professionnel (burnout)**. Elle propose notamment :
 
 - un questionnaire d'auto-évaluation standardisé (Copenhagen Burnout Inventory, CBI) ;
@@ -137,18 +137,18 @@ Les paiements sont traités exclusivement par les plateformes Apple App Store et
 Play Store (via leurs systèmes d'abonnement intégrés). L'Éditeur n'a accès à aucune
 donnée bancaire de l'Utilisateur.
 
-## Article 7 — Avertissement important : BurnoutApp n'est pas un dispositif médical
+## Article 7 — Avertissement important : FirstSign n'est pas un dispositif médical
 
-BurnoutApp est un **outil d'auto-évaluation et de prévention**, fondé sur un
+FirstSign est un **outil d'auto-évaluation et de prévention**, fondé sur un
 questionnaire scientifique reconnu (Copenhagen Burnout Inventory). Il est conçu pour
 aider les Utilisateurs à mieux comprendre leur état d'épuisement professionnel et à
 adopter des habitudes favorables à leur bien-être.
 
 L'Utilisateur reconnaît et accepte expressément que :
 
-- BurnoutApp **n'est pas un dispositif médical** au sens de la réglementation
+- FirstSign **n'est pas un dispositif médical** au sens de la réglementation
   applicable, et n'a fait l'objet d'aucune validation ou certification à ce titre ;
-- BurnoutApp **ne pose aucun diagnostic médical ou psychologique** ; les scores,
+- FirstSign **ne pose aucun diagnostic médical ou psychologique** ; les scores,
   niveaux de risque et résultats affichés sont **indicatifs** et ne constituent en
   aucun cas un avis médical ;
 - le compagnon conversationnel basé sur l'intelligence artificielle fournit des

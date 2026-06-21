@@ -44,7 +44,7 @@ export default function LoginScreen() {
     >
       <View style={styles.inner}>
         <Text style={styles.title}>Connexion</Text>
-        <Text style={styles.subtitle}>Bienvenue sur BurnoutApp</Text>
+        <Text style={styles.subtitle}>Bienvenue sur FirstSign</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 

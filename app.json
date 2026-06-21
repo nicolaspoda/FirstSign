@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "burnout-app",
-    "slug": "burnout-app",
+    "name": "FirstSign",
+    "slug": "firstsign",
     "version": "1.0.0",
-    "description": "Détectez les signes avant-coureurs du burnout professionnel avant qu'il ne soit trop tard. Évaluation scientifique CBI, suivi hebdomadaire et accompagnement personnalisé.",
-    "scheme": "burnout-app",
+    "description": "FirstSign détecte les signes avant-coureurs du burnout professionnel avant qu'il ne soit trop tard. Évaluation scientifique CBI, suivi hebdomadaire et accompagnement personnalisé.",
+    "scheme": "firstsign",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

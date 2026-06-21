@@ -194,7 +194,7 @@ export default function DashboardScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.welcomeContainer}>
           <Ionicons name="leaf-outline" size={64} color={Colors.primary} style={styles.welcomeIcon} />
-          <Text style={styles.welcomeTitle}>Bienvenue sur BurnoutApp</Text>
+          <Text style={styles.welcomeTitle}>Bienvenue sur FirstSign</Text>
           <Text style={styles.welcomeSubtitle}>
             Commencez par évaluer votre niveau de burnout. Cela prend environ 5 minutes.
           </Text>

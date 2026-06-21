@@ -1,11 +1,11 @@
-# Politique de Confidentialité — BurnoutApp
+# Politique de Confidentialité — FirstSign
 
 *Dernière mise à jour : juin 2026*
 
 ## 1. Responsable du traitement
 
 Le responsable du traitement des données personnelles collectées via l'application
-mobile **BurnoutApp** est :
+mobile **FirstSign** est :
 
 Nicolas Poda, développeur indépendant
 Toulouse, France
@@ -14,7 +14,7 @@ Contact (DPO / délégué à la protection des données) :
 publication)*
 
 La présente Politique de Confidentialité décrit comment vos données personnelles sont
-collectées, utilisées, conservées et protégées lorsque vous utilisez BurnoutApp.
+collectées, utilisées, conservées et protégées lorsque vous utilisez FirstSign.
 
 ## 2. Données collectées
 
