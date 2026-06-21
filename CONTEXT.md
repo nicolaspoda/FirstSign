@@ -7,8 +7,8 @@
 
 ## Liens importants
 
-- **CGU** : https://burnout-app-legal.netlify.app/cgu
-- **Politique de confidentialité** : https://burnout-app-legal.netlify.app/privacy
+- **CGU** : https://firstsign-legal.netlify.app/cgu
+- **Politique de confidentialité** : https://firstsign-legal.netlify.app/privacy
 - Source des pages légales : `/legal/` (`cgu.md`, `privacy.md` + versions HTML).
 - **Hébergement : Netlify** (et non GitHub Pages — le repo `burnout-app` est privé,
   GitHub Pages gratuit ne fonctionne que sur repos publics ou avec GitHub Pro).
@@ -18,7 +18,7 @@
   - Build command : (vide)
   - Publish directory : `legal`
   - Déploiement automatique à chaque push sur `main`.
-    Site Netlify : `burnout-app-legal` (renommé depuis le nom auto-généré), URLs
+    Site Netlify : `firstsign-legal` (renommé depuis `burnout-app-legal`), URLs
     vérifiées et fonctionnelles.
 
 ---
@@ -73,8 +73,7 @@ pour la roadmap détaillée vers 9/10.
 ## 2. Décisions produit importantes déjà prises
 
 - **Renommage FirstSign (2026-06-21)** : le projet s'appelait auparavant "BurnoutApp".
-  Bundle identifier `com.burnoutapp` conservé temporairement — changement prévu avant
-  soumission finale aux stores (nécessite de recréer l'app dans tous les services).
+  Bundle identifier mis à jour vers `com.firstsign` (iOS/Android).
 - **MBI → CBI** : le Maslach Burnout Inventory (payant) a été remplacé par le
   Copenhagen Burnout Inventory, libre de droits et scientifiquement validé.
 - **Gemini 2.5 Flash plutôt qu'un modèle Anthropic** pour le compagnon IA — choix
@@ -127,7 +126,7 @@ pour la roadmap détaillée vers 9/10.
 
 ### Config Expo notable (`app.json`)
 
-- `scheme: "firstsign"`, bundle id `com.burnoutapp` (iOS/Android, conservé temporairement)
+- `scheme: "firstsign"`, bundle id `com.firstsign` (iOS/Android)
 - EAS project id configuré (`extra.eas.projectId`)
 - Couleur de marque : `#1D9E75` (splash screen, icône adaptive Android)
 - Champ `description` renseigné (tagline officielle, cf. section 5, point 1)

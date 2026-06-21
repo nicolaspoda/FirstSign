@@ -10,10 +10,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.burnoutapp"
+      "bundleIdentifier": "com.firstsign"
     },
     "android": {
-      "package": "com.burnoutapp",
+      "package": "com.firstsign",
       "adaptiveIcon": {
         "backgroundColor": "#1D9E75",
         "foregroundImage": "./assets/android-icon-foreground.png",
