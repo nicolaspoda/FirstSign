@@ -1,8 +1,8 @@
 # Conditions Générales d'Utilisation — FirstSign
 
-*Dernière mise à jour : juin 2026*
+_Dernière mise à jour : juin 2026_
 
-## Article 1 — Éditeur de l'application
+## Article 1 - Éditeur de l'application
 
 L'application mobile **FirstSign** (ci-après « l'Application ») est éditée par :
 
@@ -11,7 +11,7 @@ Toulouse, France
 Contact : [nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com)
 Ci-après désigné « l'Éditeur ».
 
-## Article 2 — Objet
+## Article 2 - Objet
 
 Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») ont pour objet de
 définir les modalités et conditions d'utilisation de l'Application, ainsi que les
@@ -32,13 +32,14 @@ Toute installation et/ou utilisation de l'Application implique l'acceptation ple
 entière des présentes CGU. Si vous n'acceptez pas tout ou partie de ces CGU, vous ne
 devez pas utiliser l'Application.
 
-## Article 3 — Accès au service et formules disponibles
+## Article 3 - Accès au service et formules disponibles
 
 L'accès à l'Application repose sur un modèle freemium comportant deux formules :
 
 ### 3.1 Formule gratuite (« Free »)
 
 Comprend, sans frais :
+
 - le diagnostic CBI complet ;
 - le tableau de bord de suivi et le score de risque ;
 - le check-in hebdomadaire ;
@@ -48,6 +49,7 @@ Comprend, sans frais :
 ### 3.2 Formule premium (« Premium »)
 
 Accessible via abonnement payant (voir Article 6), elle ajoute :
+
 - le plan d'action personnalisé sur 8 semaines, généré automatiquement ;
 - l'historique illimité des check-ins ;
 - un accès illimité au compagnon IA ;
@@ -57,7 +59,7 @@ L'Éditeur se réserve le droit de faire évoluer la répartition des fonctionna
 les formules gratuite et premium, sous réserve d'en informer les Utilisateurs concernés
 dans un délai raisonnable.
 
-## Article 4 — Création et gestion du compte utilisateur
+## Article 4 - Création et gestion du compte utilisateur
 
 ### 4.1 Inscription
 
@@ -68,6 +70,7 @@ informations exactes et à jour, et à ne créer qu'un seul compte par personne.
 ### 4.2 Responsabilités de l'Utilisateur
 
 L'Utilisateur est seul responsable :
+
 - de la confidentialité de ses identifiants de connexion ;
 - de toute activité réalisée depuis son compte ;
 - de l'exactitude des informations qu'il renseigne (réponses au questionnaire,
@@ -86,7 +89,7 @@ l'effacement de l'ensemble des données de l'Utilisateur (profil, diagnostics, c
 plans d'action, conversations avec le compagnon IA) ainsi que de son compte
 d'authentification.
 
-## Article 5 — Données personnelles
+## Article 5 - Données personnelles
 
 L'Application collecte un nombre **minimal** de données personnelles, strictement
 nécessaires au fonctionnement du service : adresse email (authentification) et données
@@ -103,11 +106,12 @@ Pour plus de détails sur la nature des données collectées, leur finalité, le
 conservation et vos droits, consultez notre
 [Politique de Confidentialité](./privacy.md).
 
-## Article 6 — Abonnement Premium
+## Article 6 - Abonnement Premium
 
 ### 6.1 Tarifs
 
 L'abonnement Premium est proposé selon les formules suivantes :
+
 - **Mensuel** : 7,99 € / mois ;
 - **Annuel** : 59,99 € / an.
 
@@ -136,7 +140,7 @@ Les paiements sont traités exclusivement par les plateformes Apple App Store et
 Play Store (via leurs systèmes d'abonnement intégrés). L'Éditeur n'a accès à aucune
 donnée bancaire de l'Utilisateur.
 
-## Article 7 — Avertissement important : FirstSign n'est pas un dispositif médical
+## Article 7 - Avertissement important : FirstSign n'est pas un dispositif médical
 
 FirstSign est un **outil d'auto-évaluation et de prévention**, fondé sur un
 questionnaire scientifique reconnu (Copenhagen Burnout Inventory). Il est conçu pour
@@ -163,7 +167,7 @@ L'Éditeur ne saurait être tenu responsable des décisions prises par l'Utilisa
 la base des informations fournies par l'Application, ni des conséquences directes ou
 indirectes résultant de l'utilisation ou de l'impossibilité d'utiliser l'Application.
 
-## Article 8 — Propriété intellectuelle
+## Article 8 - Propriété intellectuelle
 
 L'Application, son code source, sa structure, son design, ses textes, ses
 illustrations, ainsi que l'ensemble des contenus qu'elle propose (questionnaire,
@@ -174,7 +178,7 @@ Toute reproduction, représentation, modification, publication, adaptation total
 partielle de l'Application ou de son contenu, par quelque moyen que ce soit, sans
 l'autorisation écrite préalable de l'Éditeur, est strictement interdite.
 
-## Article 9 — Disponibilité et évolution du service
+## Article 9 - Disponibilité et évolution du service
 
 L'Éditeur s'efforce d'assurer un accès continu à l'Application, mais ne peut garantir
 une disponibilité ininterrompue, notamment en raison d'opérations de maintenance, de
@@ -185,7 +189,7 @@ L'Éditeur se réserve le droit de faire évoluer, suspendre ou interrompre tout
 de l'Application, à tout moment, sans préavis ni indemnité, notamment en cas de
 contrainte technique, légale ou économique.
 
-## Article 10 — Modification des CGU
+## Article 10 - Modification des CGU
 
 L'Éditeur se réserve le droit de modifier les présentes CGU à tout moment, notamment
 pour les adapter aux évolutions de l'Application ou de la réglementation. La version
@@ -196,14 +200,14 @@ sera informé via l'Application.
 La poursuite de l'utilisation de l'Application après publication des CGU modifiées vaut
 acceptation de celles-ci.
 
-## Article 11 — Droit applicable et juridiction compétente
+## Article 11 - Droit applicable et juridiction compétente
 
 Les présentes CGU sont soumises au **droit français**. En cas de litige relatif à leur
 interprétation ou à leur exécution, et à défaut de résolution amiable, les tribunaux du
 ressort de **Toulouse** seront seuls compétents, sous réserve des règles impératives de
 protection des consommateurs applicables au lieu de résidence de l'Utilisateur.
 
-## Article 12 — Contact
+## Article 12 - Contact
 
 Pour toute question relative aux présentes CGU ou à l'utilisation de l'Application,
 vous pouvez contacter l'Éditeur à l'adresse suivante :
