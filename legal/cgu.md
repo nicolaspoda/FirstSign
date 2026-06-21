@@ -8,8 +8,7 @@ L'application mobile **FirstSign** (ci-après « l'Application ») est éditée 
 
 Nicolas Poda, développeur indépendant
 Toulouse, France
-Contact : [contact@firstsign.app](mailto:contact@firstsign.app) *(adresse à activer avant publication)*
-
+Contact : [nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com)
 Ci-après désigné « l'Éditeur ».
 
 ## Article 2 — Objet
@@ -209,5 +208,4 @@ protection des consommateurs applicables au lieu de résidence de l'Utilisateur.
 Pour toute question relative aux présentes CGU ou à l'utilisation de l'Application,
 vous pouvez contacter l'Éditeur à l'adresse suivante :
 
-[contact@firstsign.app](mailto:contact@firstsign.app) *(adresse à activer avant
-publication)*
+[nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com)

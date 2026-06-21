@@ -10,9 +10,7 @@ mobile **FirstSign** est :
 Nicolas Poda, développeur indépendant
 Toulouse, France
 Contact (DPO / délégué à la protection des données) :
-[privacy@firstsign.app](mailto:privacy@firstsign.app) *(adresse à activer avant
-publication)*
-
+[nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com)
 La présente Politique de Confidentialité décrit comment vos données personnelles sont
 collectées, utilisées, conservées et protégées lorsque vous utilisez FirstSign.
 
@@ -120,8 +118,7 @@ droits suivants concernant vos données personnelles :
 
 Pour exercer les droits d'accès, de rectification, de portabilité ou d'opposition, vous
 pouvez contacter l'Éditeur à l'adresse
-[privacy@firstsign.app](mailto:privacy@firstsign.app) *(adresse à activer avant
-publication)*. Une réponse vous sera apportée dans un délai maximal d'un mois.
+[nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com). Une réponse vous sera apportée dans un délai maximal d'un mois.
 
 Vous disposez également du droit d'introduire une réclamation auprès de la Commission
 Nationale de l'Informatique et des Libertés (CNIL) — [www.cnil.fr](https://www.cnil.fr)
@@ -169,9 +166,7 @@ Pour toute question relative à la présente Politique de Confidentialité ou à
 l'exercice de vos droits, vous pouvez contacter le responsable du traitement à
 l'adresse suivante :
 
-[privacy@firstsign.app](mailto:privacy@firstsign.app) *(adresse à activer avant
-publication)*
-
+[nicolaspoda@gmail.com](mailto:nicolaspoda@gmail.com)
 ---
 
 *Document mis à jour en juin 2026.*
