@@ -48,7 +48,7 @@ export default function PaywallModal({ visible, onClose, onSuccess }: PaywallMod
       const Purchases = require('react-native-purchases').default;
       const offerings = await Purchases.getOfferings();
       const current = offerings.current;
-      if (!current) throw new Error('Aucune offre disponible.');
+      if (!current) throw new Error('Offres non encore disponibles. Elles apparaîtront une fois RevenueCat connecté à Google Play Console (ou App Store Connect).');
 
       let pkg: unknown = null;
       if (type === 'monthly') {

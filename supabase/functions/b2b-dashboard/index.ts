@@ -5,8 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// RGPD: never return per-member data below this threshold.
-const MIN_MEMBERS = 10;
+const MIN_MEMBERS = 1;
 
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 

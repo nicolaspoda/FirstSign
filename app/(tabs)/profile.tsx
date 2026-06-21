@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -16,20 +17,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { useBurnoutData } from '@/hooks/useBurnoutData';
+import { supabase } from '@/lib/supabase';
 import { checkSubscription } from '@/lib/subscription';
 import { deleteAccount } from '@/lib/auth';
 import { getMembershipStatus, type MembershipStatus } from '@/lib/b2b';
 import PaywallModal from '@/components/PaywallModal';
 import type { SubscriptionTier } from '@/types/database';
 
-function getInitials(email: string): string {
+function getInitials(firstName: string | null, lastName: string | null, email: string): string {
+  const f = firstName?.[0] ?? '';
+  const l = lastName?.[0] ?? '';
+  if (f || l) return (f + l).toUpperCase();
   return email.slice(0, 2).toUpperCase();
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, signOut } = useAuth();
-  const { profile } = useBurnoutData();
+  const { profile, refresh } = useBurnoutData();
 
   const [tier, setTier] = useState<SubscriptionTier>('free');
   const [loadingTier, setLoadingTier] = useState(true);
@@ -39,6 +44,18 @@ export default function ProfileScreen() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [membership, setMembership] = useState<MembershipStatus | null>(null);
+
+  const [editingName, setEditingName] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name ?? '');
+      setLastName(profile.last_name ?? '');
+    }
+  }, [profile]);
 
   useEffect(() => {
     checkSubscription().then((t) => {
@@ -94,8 +111,30 @@ export default function ProfileScreen() {
     }
   }
 
+  async function saveName() {
+    if (!user) return;
+    setSavingName(true);
+    try {
+      await supabase
+        .from('profiles')
+        .update({ first_name: firstName.trim() || null, last_name: lastName.trim() || null })
+        .eq('user_id', user.id);
+      await refresh();
+      setEditingName(false);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  function cancelEditName() {
+    setFirstName(profile?.first_name ?? '');
+    setLastName(profile?.last_name ?? '');
+    setEditingName(false);
+  }
+
   const email = user?.email ?? '';
-  const initials = getInitials(email);
+  const initials = getInitials(profile?.first_name ?? null, profile?.last_name ?? null, email);
+  const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -111,6 +150,9 @@ export default function ProfileScreen() {
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.userInfo}>
+              {displayName ? (
+                <Text style={styles.userName}>{displayName}</Text>
+              ) : null}
               <Text style={styles.userEmail}>{email}</Text>
               <View style={styles.tierRow}>
                 {loadingTier ? (
@@ -128,6 +170,49 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+
+          {/* Edition du nom */}
+          {editingName ? (
+            <View style={styles.nameEditSection}>
+              <TextInput
+                style={styles.nameInput}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Prénom"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+              <TextInput
+                style={styles.nameInput}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Nom"
+                placeholderTextColor={Colors.textMuted}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={saveName}
+              />
+              <View style={styles.nameEditButtons}>
+                <TouchableOpacity style={styles.nameCancelBtn} onPress={cancelEditName} disabled={savingName}>
+                  <Text style={styles.nameCancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.nameSaveBtn} onPress={saveName} disabled={savingName}>
+                  {savingName
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Text style={styles.nameSaveText}>Enregistrer</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.editNameRow} onPress={() => setEditingName(true)} activeOpacity={0.7}>
+              <Ionicons name="pencil-outline" size={14} color={Colors.primary} />
+              <Text style={styles.editNameText}>
+                {displayName ? 'Modifier mon nom' : 'Ajouter mon prénom et nom'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Upgrade si gratuit */}
@@ -373,12 +458,77 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
-    gap: 8,
+    gap: 6,
+  },
+  userName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.text,
   },
   userEmail: {
-    fontSize: 15,
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+  },
+  editNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  editNameText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: Colors.primary,
+  },
+  nameEditSection: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    gap: 10,
+  },
+  nameInput: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    fontWeight: '500',
     color: Colors.text,
+  },
+  nameEditButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  nameCancelBtn: {
+    flex: 1,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  nameCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  nameSaveBtn: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  nameSaveText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   tierRow: {
     flexDirection: 'row',

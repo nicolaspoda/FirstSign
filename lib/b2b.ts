@@ -105,16 +105,32 @@ export interface OrganizationMember {
   id: string;
   user_id: string;
   joined_at: string;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 export async function getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from('organization_members')
     .select('id, user_id, joined_at')
     .eq('organization_id', organizationId)
     .order('joined_at', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as OrganizationMember[];
+  if (!rows || rows.length === 0) return [];
+
+  const { data: names } = await supabase.rpc('get_org_member_names', { p_org_id: organizationId });
+  const nameMap = new Map((names ?? []).map((p: { user_id: string; first_name: string | null; last_name: string | null }) => [p.user_id, p]));
+
+  return rows.map((r) => {
+    const n = nameMap.get(r.user_id);
+    return {
+      id: r.id,
+      user_id: r.user_id,
+      joined_at: r.joined_at,
+      first_name: n?.first_name ?? null,
+      last_name: n?.last_name ?? null,
+    };
+  });
 }
 
 export async function removeMember(memberId: string): Promise<void> {

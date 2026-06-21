@@ -432,7 +432,7 @@ export default function DevToolsScreen() {
           activeOpacity={0.8}
         >
           <Text style={[styles.btnLabel, btnVariantStyles.secondary.label]}>Aller sur le dashboard équipe</Text>
-          <Text style={[styles.btnSublabel, btnVariantStyles.secondary.sublabel]}>Voir les stats (10 membres requis)</Text>
+          <Text style={[styles.btnSublabel, btnVariantStyles.secondary.sublabel]}>Voir les stats agrégées de l'équipe</Text>
         </TouchableOpacity>
 
         <Btn

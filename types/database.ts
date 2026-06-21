@@ -15,6 +15,8 @@ export interface Database {
           remote_work: RemoteWork | null;
           is_manager: boolean | null;
           main_stress_source: string | null;
+          first_name: string | null;
+          last_name: string | null;
         };
         Insert: {
           id?: string;
@@ -25,6 +27,8 @@ export interface Database {
           remote_work?: RemoteWork | null;
           is_manager?: boolean | null;
           main_stress_source?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
         };
         Update: {
           id?: string;
@@ -35,6 +39,8 @@ export interface Database {
           remote_work?: RemoteWork | null;
           is_manager?: boolean | null;
           main_stress_source?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
         };
       };
       assessments: {

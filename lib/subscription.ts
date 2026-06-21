@@ -29,6 +29,12 @@ let initialized = false;
 
 export function initSubscription(appUserID?: string): void {
   if (Platform.OS === 'web' || isExpoGo) {
+    console.log('[RevenueCat] RevenueCat désactivé (web/Expo Go)');
+    initialized = true;
+    return;
+  }
+  if (!REVENUECAT_KEY) {
+    console.log('[RevenueCat] RevenueCat désactivé (clé absente)');
     initialized = true;
     return;
   }
@@ -36,7 +42,9 @@ export function initSubscription(appUserID?: string): void {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const Purchases = require('react-native-purchases').default;
     Purchases.configure({ apiKey: REVENUECAT_KEY, appUserID });
-  } catch {
+    console.log('[RevenueCat] RevenueCat initialisé');
+  } catch (err) {
+    console.log('[RevenueCat] Échec initialisation:', err);
     // Subscription checks fall back to the DB if configuration fails
   } finally {
     initialized = true;

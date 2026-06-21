@@ -25,6 +25,19 @@ function isoWeekForOffset(weeksBack: number): { week_number: number; year: numbe
   return { week_number, year: utc.getUTCFullYear(), created_at: monday.toISOString() };
 }
 
+const GHOST_NAMES = [
+  { first_name: 'Alice',   last_name: 'Martin' },
+  { first_name: 'Thomas',  last_name: 'Bernard' },
+  { first_name: 'Sophie',  last_name: 'Dubois' },
+  { first_name: 'Lucas',   last_name: 'Robert' },
+  { first_name: 'Emma',    last_name: 'Petit' },
+  { first_name: 'Hugo',    last_name: 'Moreau' },
+  { first_name: 'Camille', last_name: 'Laurent' },
+  { first_name: 'Nathan',  last_name: 'Simon' },
+  { first_name: 'Léa',     last_name: 'Michel' },
+  { first_name: 'Julien',  last_name: 'Garcia' },
+];
+
 // 10 member profiles with realistic variance across risk levels
 const MEMBER_PROFILES = [
   // low risk (3)
@@ -135,6 +148,10 @@ Deno.serve(async (req) => {
 
         // Add to org
         await admin.from('organization_members').insert({ organization_id: org.id, user_id: uid });
+
+        // Set name on profile (created by trigger, may need a short wait)
+        const { first_name, last_name } = GHOST_NAMES[i];
+        await admin.from('profiles').update({ first_name, last_name }).eq('user_id', uid);
 
         // Assessment
         await admin.from('assessments').insert({

@@ -28,6 +28,20 @@ function formatJoinDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function memberDisplayName(member: OrganizationMember, index: number): string {
+  const parts = [member.first_name, member.last_name].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : `Membre #${index + 1}`;
+}
+
+function memberInitials(member: OrganizationMember, index: number): string {
+  if (member.first_name || member.last_name) {
+    const f = member.first_name?.[0] ?? '';
+    const l = member.last_name?.[0] ?? '';
+    return (f + l).toUpperCase() || `${index + 1}`;
+  }
+  return `${index + 1}`;
+}
+
 function confirmRemove(name: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
     if (window.confirm(`Retirer ${name} de l'organisation ?`)) onConfirm();
@@ -96,7 +110,7 @@ export default function B2BAdminScreen() {
   }
 
   async function handleRemove(member: OrganizationMember, index: number) {
-    confirmRemove(`Membre #${index + 1}`, async () => {
+    confirmRemove(memberDisplayName(member, index), async () => {
       setRemovingId(member.id);
       try {
         await removeMember(member.id);
@@ -168,10 +182,10 @@ export default function B2BAdminScreen() {
                   style={[styles.memberRow, index < members.length - 1 && styles.memberRowBorder]}
                 >
                   <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>{index + 1}</Text>
+                    <Text style={styles.memberAvatarText}>{memberInitials(member, index)}</Text>
                   </View>
                   <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>Membre #{index + 1}</Text>
+                    <Text style={styles.memberName}>{memberDisplayName(member, index)}</Text>
                     <Text style={styles.memberDate}>Rejoint le {formatJoinDate(member.joined_at)}</Text>
                   </View>
                   <TouchableOpacity
