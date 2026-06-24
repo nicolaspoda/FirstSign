@@ -41,7 +41,7 @@ export default function ForgotPasswordScreen() {
           <View style={styles.iconBox}>
             <Ionicons name="mail-outline" size={36} color={Colors.primary} />
           </View>
-          <Text style={styles.title}>Email envoyé !</Text>
+          <Text style={[styles.title, { textAlign: 'center' }]}>Email envoyé !</Text>
           <Text style={styles.sentBody}>
             Si un compte existe pour{'\n'}
             <Text style={styles.sentEmail}>{email}</Text>

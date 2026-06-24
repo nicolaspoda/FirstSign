@@ -1,4 +1,5 @@
 import { AuthError } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { supabase } from './supabase';
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -46,7 +47,8 @@ export async function getCurrentUser() {
 }
 
 export async function resetPassword(email: string) {
-  return supabase.auth.resetPasswordForEmail(email);
+  const redirectTo = Linking.createURL('reset-password');
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo });
 }
 
 export async function deleteAccount(): Promise<void> {
