@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FirstSign",
-    "slug": "firstsign",
+    "slug": "burnout-app",
     "version": "1.0.0",
     "description": "Détectez les signes avant-coureurs du burnout avant qu'il ne soit trop tard. Diagnostic scientifique CBI, suivi personnalisé, et IA bienveillante.",
     "scheme": "firstsign",
@@ -10,10 +10,16 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.firstsign"
+      "bundleIdentifier": "com.firstsign",
+      "buildNumber": "3",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "FirstSign vous envoie un rappel hebdomadaire pour votre check-in burnout.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.firstsign",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#1D9E75",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -123,6 +123,28 @@ pour la roadmap détaillée vers 9/10.
 - **react-native-purchases ^10.2.2** (RevenueCat) — natif uniquement.
   Fallback sur `profiles.subscription_tier` (lecture DB) en web et en Expo Go,
   car RevenueCat nécessite un development build.
+  **Deux clés séparées par plateforme** (`lib/subscription.ts` sélectionne via `Platform.OS`) :
+  - iOS : `EXPO_PUBLIC_REVENUECAT_KEY_IOS=appl_JXIGgNDJnShoxUmmTuBwBsHBVJm` ✅ clé de prod
+  - Android : `EXPO_PUBLIC_REVENUECAT_KEY_ANDROID=goog_paufPlLpkBnhOTZmdpLIqAlJdBI` ✅ clé de prod
+
+  **Configuration RevenueCat complète (configurée le 2026-06-26 via MCP) :**
+  - Projet : `proj6aec8123` (nom affiché "BurnoutApp" dans RC dashboard — renommer manuellement
+    si souhaité, mais ne change rien au fonctionnement)
+  - App iOS : `appdae4b7b51e` — bundle `com.firstsign` — ⚠️ clé P8 App Store Connect à uploader
+    manuellement dans le dashboard RC (section "App Store Connect API Key")
+  - App Android : `app7abc5cf7db` — package `com.firstsign` — ⚠️ `google-service-account.json`
+    à configurer manuellement dans le dashboard RC (section "Google Play")
+  - Entitlement : `premium` (lookup_key) / "FirstSign Pro" (display_name) — `entl77cc060056`
+    ⚠️ L'ancien entitlement "BurnoutApp Pro" (lookup_key `BurnoutApp Pro`) existe toujours mais
+    n'est PAS utilisé par le code (le code cherche `premium`) — peut être archivé manuellement
+  - Offering : `default` (ofrng9b25f2ed50) avec 2 packages actifs :
+    - `$rc_monthly` : produit iOS `firstsign_monthly`, produit Android `firstsign_monthly:base`
+    - `$rc_annual` : produit iOS `firstsign_yearly`, produit Android `firstsign_yearly:base`
+  - Les produits iOS (`firstsign_monthly`, `firstsign_yearly`) doivent être créés dans
+    App Store Connect avec exactement ces identifiants avant de pouvoir être achetés
+  - Les produits Android (`firstsign_monthly:base`, `firstsign_yearly:base`) doivent être
+    créés dans Google Play Console (subscription ID `firstsign_monthly`, base plan `base`)
+    avant de pouvoir être achetés
 
 ### Config Expo notable (`app.json`)
 
@@ -289,8 +311,8 @@ pour la roadmap détaillée vers 9/10.
   mobile installée)
 
 **Statut : partiel** — logique de détection plateforme/fallback complète, mais achats
-RevenueCat réels non testables sans development build + clé API configurée
-(`EXPO_PUBLIC_REVENUECAT_KEY` non renseignée).
+RevenueCat réels non testables sans development build + clés de production configurées
+(`EXPO_PUBLIC_REVENUECAT_KEY_IOS` / `EXPO_PUBLIC_REVENUECAT_KEY_ANDROID`).
 Incohérence mineure : les features `checkin_2weeks`/`ai_3messages` sont définies mais
 jamais vérifiées via `canAccess` (limites codées en dur ailleurs) — cf. section 5,
 "Nettoyage mineur".
@@ -460,8 +482,8 @@ gating B2B se fait par appartenance à une organisation, pas par
       les boutons d'achat, séparé par une ligne fine), appelant `Purchases.restorePurchases()`
       via `restorePurchases()` (`lib/subscription.ts`). Sur web/Expo Go, affiche un message
       indiquant que la restauration nécessite l'application mobile installée. Obligatoire
-      pour l'App Store. Reste à renseigner `EXPO_PUBLIC_REVENUECAT_KEY` et tester via un
-      development build.
+      pour l'App Store. Reste à remplacer `EXPO_PUBLIC_REVENUECAT_KEY_IOS` par la clé de
+      production iOS et tester via un development build.
 
 - [ ] **11. Build natif Android**
       `eas.json` a déjà des profils `preview` (APK interne) et `production`
@@ -573,6 +595,50 @@ Types TS : `types/database.ts`
 
 - **Métadonnées App Store Connect** (nom, sous-titre, description longue, mots-clés,
   catégorie) : `/store-assets/metadata.md` — prêt à copier-coller dans App Store Connect.
-- **Icône 1024×1024** : `/store-assets/icon/` — dossier à compléter avec `icon-1024.png`
-  (fond vert `#1D9E75`, onde de signal blanche) avant le build EAS iOS.
-  Voir `/store-assets/icon/README.md` pour les spécifications et l'intégration `app.json`.
+- **Icône 1024×1024** : `/store-assets/icon/icon-1024.png` ✅ (1024×1024, RGB sans alpha).
+  `app.json` référence `./assets/icon.png` — même format, même dimensions, ✅.
+
+---
+
+## Pré-vol build production iOS
+
+_Vérifications effectuées le 2026-06-26 avant `eas build --profile production --platform ios`._
+
+| # | Vérification | État | Action effectuée |
+|---|--------------|------|-----------------|
+| 1 | Bundle identifier `com.firstsign` | ✅ | — |
+| 2 | `version: "1.0.0"` | ✅ | — |
+| 2 | `ios.buildNumber` | ✅ | Ajouté `"1"` dans `app.json` |
+| 2 | `android.versionCode` | ✅ | Ajouté `1` dans `app.json` |
+| 3 | Icône 1024×1024 sans alpha | ✅ | RGB confirmé, pas de canal alpha |
+| 4 | Splash screen `#1D9E75` | ✅ | — |
+| 5 | `NSUserNotificationsUsageDescription` iOS | ✅ | Ajouté en français dans `app.json` → `ios.infoPlist` |
+| 6 | `eas.json` profil production + submit iOS | ✅ | `autoIncrement: true`, submit avec `appleId`. `ascAppId` à saisir interactivement au premier submit. |
+| 7 | `EXPO_PUBLIC_SUPABASE_URL` | ✅ | Présente |
+| 7 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Présente |
+| 7 | `EXPO_PUBLIC_REVENUECAT_KEY_IOS` | ✅ | `appl_JXIGgNDJnShoxUmmTuBwBsHBVJm` — clé de prod iOS configurée |
+| 7 | `EXPO_PUBLIC_REVENUECAT_KEY_ANDROID` | ✅ | `goog_paufPlLpkBnhOTZmdpLIqAlJdBI` — clé de prod Android configurée |
+| 8 | Occurrences `BurnoutApp` / `com.burnoutapp` | ✅ | Aucune trouvée |
+| 9 | Compte de test Apple Review | ⚠️ | Absent — à créer manuellement via l'app (voir actions manuelles ci-dessous) |
+
+### Actions manuelles restantes avant soumission
+
+1. ~~**Clé RevenueCat iOS**~~ ✅ **Fait le 2026-06-26** — clé `appl_JXIGgNDJnShoxUmmTuBwBsHBVJm`
+   configurée dans `.env`. Clé Android aussi configurée (`goog_paufPlLpkBnhOTZmdpLIqAlJdBI`).
+   **Reste à faire manuellement dans le dashboard RevenueCat :**
+   - Uploader la clé P8 App Store Connect (iOS) → dashboard RC → app "FirstSign (App Store)"
+     → "App Store Connect API Key"
+   - Configurer `google-service-account.json` (Android) → dashboard RC → app "FirstSign (Play Store)"
+   - Créer les produits dans App Store Connect : `firstsign_monthly` (7,99€/mois) et
+     `firstsign_yearly` (59,99€/an) — même identifiant que dans RevenueCat
+   - Créer les produits dans Google Play Console : subscription ID `firstsign_monthly`
+     (base plan `base`, 7,99€/mois) et `firstsign_yearly` (base plan `base`, 59,99€/an)
+
+2. **Compte de test Apple Review** : Apple exige un compte de démonstration pour la review.
+   Créer un compte via l'app (ex. `apple.review@firstsign.app` ou adresse réelle),
+   compléter le diagnostic CBI, noter les identifiants — à renseigner dans
+   App Store Connect → App Review Information.
+
+3. **`ascAppId`** dans `eas.json` : numéro d'App Store Connect à 9-10 chiffres.
+   EAS le demandera interactivement au premier `eas submit`, ou à ajouter manuellement
+   dans `eas.json` → `submit.production.ios.ascAppId`.

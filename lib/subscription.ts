@@ -17,7 +17,9 @@ const FEATURES_BY_TIER: Record<SubscriptionTier, Feature[]> = {
   premium: ['assessment', 'checkin_2weeks', 'ai_3messages', 'checkin_history', 'ai_unlimited', 'action_plan', 'exercises'],
 };
 
-const REVENUECAT_KEY = process.env.EXPO_PUBLIC_REVENUECAT_KEY ?? '';
+const REVENUECAT_KEY = Platform.OS === 'ios'
+  ? process.env.EXPO_PUBLIC_REVENUECAT_KEY_IOS ?? ''
+  : process.env.EXPO_PUBLIC_REVENUECAT_KEY_ANDROID ?? '';
 const PREMIUM_ENTITLEMENT = 'premium';
 
 // RevenueCat's native store isn't available in Expo Go and logs a console.error

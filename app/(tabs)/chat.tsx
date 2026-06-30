@@ -329,7 +329,7 @@ export default function ChatScreen() {
         {!isPremium && !loadingHistory && (
           <View style={[styles.counterBadge, remaining === 0 && styles.counterBadgeEmpty]}>
             <Text style={[styles.counterText, remaining === 0 && styles.counterTextEmpty]}>
-              {remaining} / {FREE_MONTHLY_LIMIT} ce mois
+              {conversationCount} / {FREE_MONTHLY_LIMIT} messages
             </Text>
           </View>
         )}
