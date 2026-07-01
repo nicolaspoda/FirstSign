@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
@@ -64,9 +65,11 @@ export default function WelcomeScreen() {
       <View style={styles.container}>
         <View style={styles.topSection}>
           <View style={styles.iconContainer}>
-            <View style={styles.iconInner}>
-              <Text style={styles.iconText}>B</Text>
-            </View>
+            <Image
+              source={require('@/assets/icon.png')}
+              style={styles.iconImage}
+              resizeMode="cover"
+            />
           </View>
 
           <Animated.View style={[styles.headerContainer, headerStyle]}>
@@ -141,23 +144,10 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 32,
   },
-  iconInner: {
+  iconImage: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  iconText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
   headerContainer: {
     marginBottom: 20,

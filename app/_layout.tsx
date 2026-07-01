@@ -53,6 +53,7 @@ function parseUrlFragment(url: string): Record<string, string> {
 
 function looksLikeEmailConfirmUrl(url: string): boolean {
   if (url.includes('reset-password')) return false;
+  if (url.includes('email-confirmed')) return true;
   const parsed = Linking.parse(url);
   if (typeof parsed.queryParams?.code === 'string') return true;
   const fragment = parseUrlFragment(url);
