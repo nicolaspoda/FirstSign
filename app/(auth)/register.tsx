@@ -76,7 +76,7 @@ export default function RegisterScreen() {
             Cliquez sur le lien dans l'email pour activer votre compte, puis revenez vous connecter.
           </Text>
           <TouchableOpacity
-            style={styles.button}
+            style={styles.confirmationButton}
             onPress={() => router.replace('/(auth)/login')}
           >
             <Text style={styles.buttonText}>Aller à la connexion</Text>
@@ -246,5 +246,14 @@ const styles = StyleSheet.create({
   confirmationEmail: {
     color: Colors.primary,
     fontWeight: '600',
+  },
+  confirmationButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginTop: 8,
+    marginBottom: 8,
   },
 });
