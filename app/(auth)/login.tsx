@@ -65,7 +65,7 @@ export default function LoginScreen() {
           placeholderTextColor={Colors.textMuted}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={password.length > 0}
           textContentType="password"
           autoCorrect={false}
         />

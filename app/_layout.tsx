@@ -167,9 +167,7 @@ export default function RootLayout() {
       if (looksLikeEmailConfirmUrl(url)) {
         emailJustConfirmedRef.current = true;
         const ok = await handleEmailConfirmUrl(url);
-        if (ok) {
-          router.replace('/(auth)/email-confirmed');
-        } else {
+        if (!ok) {
           emailJustConfirmedRef.current = false;
         }
       }
@@ -214,7 +212,10 @@ export default function RootLayout() {
         return;
       }
       // Don't redirect away from the email-confirmed screen while it's showing
-      if (onEmailConfirmed) return;
+      if (onEmailConfirmed) {
+        emailJustConfirmedRef.current = false;
+        return;
+      }
 
       // Password recovery: navigate to reset-password if not already there
       if (recoveryMode) {

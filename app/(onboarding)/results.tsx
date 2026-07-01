@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase';
 import { generateActionPlan } from '@/lib/api';
 import { scheduleWeeklyCheckinReminder } from '@/lib/notifications';
 import { clearBurnoutCache } from '@/hooks/useBurnoutData';
+import { canAccess } from '@/lib/subscription';
 import type { Assessment, RiskLevel } from '@/types/database';
 import PaywallModal from '@/components/PaywallModal';
 
@@ -202,6 +203,7 @@ export default function ResultsScreen() {
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   const scoreBarWidth = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
@@ -288,6 +290,12 @@ export default function ResultsScreen() {
 
     if (needsContext) {
       router.push({ pathname: '/(onboarding)/context', params: { assessmentId } });
+      return;
+    }
+
+    const hasAccess = isPremium || (await canAccess('action_plan').then((v) => { setIsPremium(v); return v; }));
+    if (!hasAccess) {
+      setShowPaywall(true);
       return;
     }
 
@@ -465,14 +473,6 @@ export default function ResultsScreen() {
 
           {previousAssessment ? (
             <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={handleBackToDashboard}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.ctaButtonText}>Retour au dashboard →</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
               style={[styles.ctaButton, loadingPlan && styles.ctaButtonDisabled]}
               onPress={handleCreatePlan}
               disabled={loadingPlan}
@@ -481,8 +481,16 @@ export default function ResultsScreen() {
               {loadingPlan ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.ctaButtonText}>Créer mon plan d'action →</Text>
+                <Text style={styles.ctaButtonText}>Mettre à jour mon plan →</Text>
               )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={handleBackToDashboard}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.ctaButtonText}>Accéder à mon tableau de bord →</Text>
             </TouchableOpacity>
           )}
         </Animated.View>
@@ -493,6 +501,7 @@ export default function ResultsScreen() {
         onClose={() => setShowPaywall(false)}
         onSuccess={() => {
           setShowPaywall(false);
+          setIsPremium(true);
           handleCreatePlan();
         }}
       />

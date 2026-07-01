@@ -95,7 +95,7 @@ export default function ResetPasswordScreen() {
             placeholderTextColor={Colors.textMuted}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry={!showPassword}
+            secureTextEntry={password.length > 0 && !showPassword}
             autoCapitalize="none"
             autoCorrect={false}
             autoFocus
@@ -116,7 +116,7 @@ export default function ResetPasswordScreen() {
             placeholderTextColor={Colors.textMuted}
             value={confirm}
             onChangeText={setConfirm}
-            secureTextEntry={!showConfirm}
+            secureTextEntry={confirm.length > 0 && !showConfirm}
             autoCapitalize="none"
             autoCorrect={false}
           />

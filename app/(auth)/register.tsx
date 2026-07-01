@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { getAuthErrorMessage } from '@/lib/auth';
@@ -69,8 +70,12 @@ export default function RegisterScreen() {
         .eq('user_id', result.data.session.user.id);
       // _layout.tsx handles the redirect once the session updates.
     } else {
-      // Email confirmation required — names saved in user_metadata, written to
-      // profile in email-confirmed.tsx once the session is established.
+      // Email confirmation required — persist names locally so email-confirmed.tsx
+      // can write them to the profile once the session is established.
+      await AsyncStorage.setItem(
+        'pending_user_names',
+        JSON.stringify({ first_name: firstName.trim(), last_name: lastName.trim() }),
+      );
       setSubmitting(false);
       setAwaitingConfirmation(true);
     }
@@ -155,7 +160,7 @@ export default function RegisterScreen() {
           placeholderTextColor={Colors.textMuted}
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={password.length > 0}
         />
         <TextInput
           style={styles.input}
@@ -163,7 +168,7 @@ export default function RegisterScreen() {
           placeholderTextColor={Colors.textMuted}
           value={confirm}
           onChangeText={setConfirm}
-          secureTextEntry
+          secureTextEntry={confirm.length > 0}
         />
 
         <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={submitting}>

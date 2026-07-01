@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '@/constants/colors';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,14 +14,22 @@ export default function EmailConfirmedScreen() {
 
   useEffect(() => {
     if (!user) return;
-    const { first_name, last_name } = (user.user_metadata ?? {}) as Record<string, string>;
-    if (first_name || last_name) {
-      supabase
-        .from('profiles')
-        .update({ first_name: first_name ?? null, last_name: last_name ?? null })
-        .eq('user_id', user.id)
-        .then(() => {});
+    async function syncNames() {
+      try {
+        const stored = await AsyncStorage.getItem('pending_user_names');
+        if (!stored) return;
+        const { first_name, last_name } = JSON.parse(stored) as Record<string, string>;
+        if (!first_name && !last_name) return;
+        await supabase
+          .from('profiles')
+          .update({ first_name: first_name || null, last_name: last_name || null })
+          .eq('user_id', user!.id);
+        await AsyncStorage.removeItem('pending_user_names');
+      } catch (e) {
+        console.error('[email-confirmed] syncNames error:', e);
+      }
     }
+    syncNames();
   }, [user]);
 
   async function handleContinue() {
