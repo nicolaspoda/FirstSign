@@ -15,8 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/colors';
 import { useAuth } from '@/hooks/useAuth';
 import { getAuthErrorMessage } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function RegisterScreen() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -27,6 +30,10 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   async function handleRegister() {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Veuillez saisir votre prénom et votre nom.');
+      return;
+    }
     if (!email || !password || !confirm) {
       setError('Veuillez remplir tous les champs.');
       return;
@@ -41,7 +48,10 @@ export default function RegisterScreen() {
     }
     setError('');
     setSubmitting(true);
-    const result = await signUp(email.trim(), password);
+    const result = await signUp(email.trim(), password, {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+    });
     if (result.error) {
       setSubmitting(false);
       setError(getAuthErrorMessage(result.error));
@@ -52,10 +62,15 @@ export default function RegisterScreen() {
       setSubmitting(false);
       setError('Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.');
     } else if (result.data?.session) {
-      // Email confirmation disabled — session active immediately.
+      // Email confirmation disabled — session active immediately, save names now.
+      await supabase
+        .from('profiles')
+        .update({ first_name: firstName.trim(), last_name: lastName.trim() })
+        .eq('user_id', result.data.session.user.id);
       // _layout.tsx handles the redirect once the session updates.
     } else {
-      // Email confirmation required
+      // Email confirmation required — names saved in user_metadata, written to
+      // profile in email-confirmed.tsx once the session is established.
       setSubmitting(false);
       setAwaitingConfirmation(true);
     }
@@ -102,6 +117,27 @@ export default function RegisterScreen() {
         <Text style={styles.subtitle}>Commencez votre suivi du bien-être</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.nameRow}>
+          <TextInput
+            style={[styles.input, styles.nameInput]}
+            placeholder="Prénom"
+            placeholderTextColor={Colors.textMuted}
+            value={firstName}
+            onChangeText={setFirstName}
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+          <TextInput
+            style={[styles.input, styles.nameInput]}
+            placeholder="Nom"
+            placeholderTextColor={Colors.textMuted}
+            value={lastName}
+            onChangeText={setLastName}
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+        </View>
 
         <TextInput
           style={styles.input}
@@ -178,6 +214,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 12,
     borderRadius: 8,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 0,
+  },
+  nameInput: {
+    flex: 1,
+    marginBottom: 16,
   },
   input: {
     backgroundColor: Colors.surface,

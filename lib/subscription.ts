@@ -91,9 +91,10 @@ export async function checkSubscription(): Promise<SubscriptionTier> {
     const Purchases = require('react-native-purchases').default;
     const customerInfo = await Purchases.getCustomerInfo();
     const isPremium = PREMIUM_ENTITLEMENT in customerInfo.entitlements.active;
-    return isPremium ? 'premium' : 'free';
+    if (isPremium) return 'premium';
+    return checkSubscriptionFromDB();
   } catch {
-    return 'free';
+    return checkSubscriptionFromDB();
   }
 }
 

@@ -31,7 +31,8 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "nicolaspoda@gmail.com"
+        "appleId": "nicolaspoda@gmail.com",
+        "ascAppId": "6782642821"
       }
     }
   }

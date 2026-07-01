@@ -88,7 +88,7 @@ export default function ContextScreen() {
       .maybeSingle();
 
     if (!existingPlan) {
-      await generateActionPlan(assessmentId);
+      generateActionPlan(assessmentId).catch(() => {});
     }
 
     router.replace({ pathname: '/(onboarding)/plan-preview', params: { assessmentId } });

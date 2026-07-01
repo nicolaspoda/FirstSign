@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,7 @@ export default function PlanPreviewScreen() {
   const { assessmentId } = useLocalSearchParams<{ assessmentId: string }>();
   const [plan, setPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(true);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!assessmentId) {
@@ -56,17 +57,35 @@ export default function PlanPreviewScreen() {
       return;
     }
 
-    supabase
-      .from('action_plans')
-      .select('*')
-      .eq('assessment_id', assessmentId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        setPlan((data as ActionPlan | null) ?? null);
-        setLoading(false);
-      });
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20;
+
+    function fetchPlan() {
+      supabase
+        .from('action_plans')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setPlan(data as ActionPlan);
+            setLoading(false);
+          } else if (attempts < MAX_ATTEMPTS) {
+            attempts++;
+            timeoutRef.current = setTimeout(fetchPlan, 2000);
+          } else {
+            setLoading(false);
+          }
+        });
+    }
+
+    fetchPlan();
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [assessmentId]);
 
   function handleContinue() {
@@ -78,6 +97,7 @@ export default function PlanPreviewScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Génération de votre programme personnalisé…</Text>
         </View>
       </SafeAreaView>
     );
@@ -132,6 +152,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 16,
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   scrollContent: {
     flexGrow: 1,

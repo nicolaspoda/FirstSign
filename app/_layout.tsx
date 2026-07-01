@@ -51,6 +51,38 @@ function parseUrlFragment(url: string): Record<string, string> {
   return result;
 }
 
+function looksLikeEmailConfirmUrl(url: string): boolean {
+  if (url.includes('reset-password')) return false;
+  const parsed = Linking.parse(url);
+  if (typeof parsed.queryParams?.code === 'string') return true;
+  const fragment = parseUrlFragment(url);
+  return fragment.type === 'signup' && !!fragment.access_token;
+}
+
+async function handleEmailConfirmUrl(url: string): Promise<boolean> {
+  if (url.includes('reset-password')) return false;
+
+  // PKCE flow: code in query params
+  const parsed = Linking.parse(url);
+  const code = parsed.queryParams?.code;
+  if (typeof code === 'string') {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    return !error;
+  }
+
+  // Implicit flow: type=signup in URL fragment
+  const fragment = parseUrlFragment(url);
+  if (fragment.type === 'signup' && fragment.access_token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: fragment.access_token,
+      refresh_token: fragment.refresh_token ?? '',
+    });
+    return !error;
+  }
+
+  return false;
+}
+
 async function handlePasswordResetUrl(url: string): Promise<boolean> {
   if (!url.includes('reset-password')) return false;
 
@@ -83,6 +115,8 @@ export default function RootLayout() {
   const segments = useSegments();
   // Prevent double-navigation on first render
   const hasRedirected = useRef(false);
+  // Set to true when user arrives via email confirmation deep link
+  const emailJustConfirmedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -95,6 +129,10 @@ export default function RootLayout() {
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && mounted) {
           isRecovery = await handlePasswordResetUrl(initialUrl);
+          if (!isRecovery) {
+            const isConfirmation = await handleEmailConfirmUrl(initialUrl);
+            if (isConfirmation) emailJustConfirmedRef.current = true;
+          }
         }
       } catch {}
 
@@ -120,8 +158,20 @@ export default function RootLayout() {
     });
 
     // Handle deep links while the app is already running
-    const linkSub = Linking.addEventListener('url', ({ url }) => {
-      handlePasswordResetUrl(url);
+    const linkSub = Linking.addEventListener('url', async ({ url }) => {
+      if (await handlePasswordResetUrl(url)) return;
+
+      // Set the flag synchronously BEFORE the async session exchange so that
+      // the onAuthStateChange-triggered redirect sees it in time.
+      if (looksLikeEmailConfirmUrl(url)) {
+        emailJustConfirmedRef.current = true;
+        const ok = await handleEmailConfirmUrl(url);
+        if (ok) {
+          router.replace('/(auth)/email-confirmed');
+        } else {
+          emailJustConfirmedRef.current = false;
+        }
+      }
     });
 
     return () => {
@@ -148,12 +198,22 @@ export default function RootLayout() {
     const inStandaloneRoute = segments[0] === 'exercises' || segments[0] === 'b2b';
 
     const onResetPassword = inAuthGroup && (segments as string[])[1] === 'reset-password';
+    const onEmailConfirmed = inAuthGroup && (segments as string[])[1] === 'email-confirmed';
 
     async function redirect() {
       if (inDevRoute || inStandaloneRoute) return;
 
       // reset-password manages its own navigation after submit — never redirect away
       if (onResetPassword) return;
+
+      // Email confirmation: show the confirmation screen once, then clear the flag
+      if (emailJustConfirmedRef.current && !onEmailConfirmed) {
+        emailJustConfirmedRef.current = false;
+        router.replace('/(auth)/email-confirmed');
+        return;
+      }
+      // Don't redirect away from the email-confirmed screen while it's showing
+      if (onEmailConfirmed) return;
 
       // Password recovery: navigate to reset-password if not already there
       if (recoveryMode) {

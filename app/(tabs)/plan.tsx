@@ -484,6 +484,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 20,
+    gap: 12,
   },
   pageTitle: {
     fontSize: 22,

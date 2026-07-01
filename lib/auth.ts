@@ -29,8 +29,8 @@ export function getAuthErrorMessage(error: AuthError): string {
   return 'Une erreur est survenue. Veuillez réessayer.';
 }
 
-export async function signUp(email: string, password: string) {
-  return supabase.auth.signUp({ email, password });
+export async function signUp(email: string, password: string, data?: Record<string, string>) {
+  return supabase.auth.signUp({ email, password, options: data ? { data } : undefined });
 }
 
 export async function signIn(email: string, password: string) {
